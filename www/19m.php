@@ -231,7 +231,6 @@ set_session('ss_cert_url', $_GET['url']);
                     <div class="certi_frm">
                         <div class="btn_area3">
                             <a  href="javascript:jsSubmit2();" class="certi_phone ">휴대폰 인증</a>
-                            <a href="javascript:jsSubmit();" class="certi_ipin ">아이핀 인증</a>
                         </div>
                     </div>
                 </form>
