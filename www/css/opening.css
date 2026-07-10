@@ -1,0 +1,54 @@
+@charset "utf-8";
+
+/* 초기 설정 */
+* {font-size: 1em; font-weight:400; font-style: normal;}
+html {overflow-y:scroll}
+body {margin:0; padding:0; line-height: 20px; letter-spacing: -0.04em; font-size: 14px; word-spacing: -1px; color: #111;background: #fff; }
+html, h1, h2, h3, h4, h5, h6, form, fieldset, img {margin:0; padding:0; border:0;}
+h1, h2, h3, h4, h5, h6 {font-size:1em;}
+article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section {display:block;}
+legend {position:absolute; margin:0; padding:0; font-size:0; line-height:0; text-indent:-9999; overflow:hidden;}
+label, input, button, select, img {vertical-align:middle}
+input, button {margin:0; padding:0; font-size:1em;}
+button {cursor:pointer}
+textarea, select {font-size:1em;}
+select {margin:0;}
+p {margin:0; padding:0; word-break:break-all; text-align: center;}
+pre {overflow-x:scroll;font-size:1.1em}
+a:link, a:visited {color:#111;text-decoration:none}
+a:hover, a:focus, a:active {color:#111; text-decoration:none;}
+ul,li,ol,dt,dd{padding:0;margin:0;list-style:none}
+
+/* main */
+.wrap {position: relative;}
+.wrap .open_box {width: 70%;height: 300px;position: absolute;top: 50%;left: 50%;transform: translate(-50%, 50%);padding: 40px 0 0;border-radius: 50px;border: 1px solid #e5e5e5;box-shadow: 2px 7px 13px #bbbbbb82;}
+.wrap .open_box img {display: block;width: 100px;margin: 0 auto;margin-bottom: 30px;}
+.wrap .open_box p {color: #999;font-size: 1.1em;line-height: 1.6em;display: block;margin: 0 auto;}
+.wrap .open_box h3 {text-align: center;font-size: 2.5em;margin: 40px 0 25px;color: #999;font-weight: 800;}
+.wrap .open_box h3 span {font-weight: 800;color: #d35555;}
+
+@media (max-width: 970px){
+    /* main */
+    .wrap {position: relative;}
+    .wrap .open_box {width: 90%;height: 300px;position: absolute;top: 50%;left: 50%;transform: translate(-50%, 50%);padding: 70px 0 0;border-radius: 50px;border: 1px solid #e5e5e5;box-shadow: 2px 7px 13px #bbbbbb82;}
+    .wrap .open_box img {display: block;width: 85px;margin: 0 auto;margin-bottom: 30px;}
+    .wrap .open_box p {color: #999;font-size: 0.9em;line-height: 1.6em;display: block;margin: 0 auto;}
+    .wrap .open_box h3 {text-align: center;font-size: 1.8em;margin: 40px 0 25px;color: #999;font-weight: 800;}
+    .wrap .open_box h3 span {font-weight: 800;color: #d35555;}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

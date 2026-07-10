@@ -1,0 +1,37 @@
+@charset "utf-8";
+
+/* 아웃로그인 스킨 */
+.ol {}
+.ol h2 {position:absolute;font-size:0;text-indent:-9999em;line-height:0;overflow:hidden}
+.ol a.btn_admin {} /* 관리자 전용 버튼 */
+.ol a.btn_admin:focus, .ol a.btn_admin:hover {text-decoration:none}
+
+#ol_after {width:300px}
+#ol_after .btn_close {position:absolute;right:10px;top:15px;z-index:999;color: #fff;}
+#ol_after .ol_hd {padding:20px;padding-left:95px;position:relative;min-height:50px}
+#ol_after .profile_img {display:block;position:absolute;top:20px;left:20px}
+#ol_after .profile_img img {width:58px;height:auto;border-radius:50px}
+#ol_after .ol_hd strong {font-size: 13px;font-weight: 600;display:block;line-height:24px;color: #fff;}
+#ol_after #ol_after_info {position:absolute;bottom:0;right:-5px;background:#fff;width:26px;line-height:26px;display:block;border-radius:50px;text-align:center}
+
+.ol_hd_btn {}
+.ol_hd_btn #ol_after_logout {color: #ff82be;border: 1px solid #fff;}
+
+.ol_wr {background: #ff82be;border: 1px solid #ff82be;}
+
+#ol_after_private {border-top: 1px solid #ffffff47;padding:20px 0;font-size: 13px;}
+#ol_after_private li {position:relative;display:block;padding:10px 20px;line-height:20px}
+#ol_after_private li strong {float:right;color:#222}
+#ol_after_private li a {display:block;font-weight:400;color: #fff;}
+#ol_after_private li:after {display:block;visibility:hidden;clear:both;content:""}
+
+#ol_after_private li i {text-align:center;width:30px;margin-right:20px;color: #fff;}
+#ol_after_private li .fa-gift {font-size:18px}
+#ol_after_private li .fa-comments-o {font-size:18px}
+#ol_after_private li .fa-question-circle-o {font-size:18px}
+/*#ol_after_private li:last-child {background:#f6f8f7}*/
+@media (max-width: 970px) {
+
+    #ol_after {right: 65px !important;}
+
+}

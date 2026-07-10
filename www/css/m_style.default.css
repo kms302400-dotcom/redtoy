@@ -1,0 +1,127 @@
+@charset "utf-8";
+
+/* 초기 설정 */
+* {font-size: 1em; font-weight:400; font-family: "montserrat", "noto", "Roboto", sans-serif; font-style: normal;}
+html {overflow-y:scroll}
+body {margin:0;padding:0;line-height: 20px;letter-spacing: -0.04em;font-size: 14px;word-spacing: -1px;color: #777;}
+html, h1, h2, h3, h4, h5, h6, form, fieldset, img {margin:0; padding:0; border:0;}
+h1, h2, h3, h4, h5, h6 {font-size:1em;}
+article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section {display:block;}
+legend {position:absolute; margin:0; padding:0; font-size:0; line-height:0; text-indent:-9999; overflow:hidden;}
+label, input, button, select, img {vertical-align:middle}
+input, button {margin:0; padding:0; font-size:1em;}
+button {cursor:pointer}
+textarea, select {font-size:1em;}
+select {margin:0;}
+p {margin:0; padding:0; word-break:break-all; text-align: center;}
+pre {overflow-x:scroll;font-size:1.1em}
+a:link, a:visited {color: #fd5c63;text-decoration:none}
+a:hover, a:focus, a:active {color:#111; text-decoration:none;}
+ul,li,ol,dt,dd{padding:0;margin:0;list-style:none}
+
+/* Adult certification conts */
+#sub_wrap { position:relative; width:100%; margin: 0 auto;}
+#certi_wrap { position:relative; width:95%; margin:0 auto; height:80px;}
+#adult_certify, #logo, #adult_act {position: relative; width: 100%; margin: 20px auto; text-align: center;}
+#adult_certify img {width: 70px;}
+#logo img {width: 200px; padding: 5px 0;}
+#adult_act .announcement {display: block;width: 90%;margin: 0 auto;font-size: 0.85em;line-height: 1.6em;text-align: center;}
+
+.certi_out {font-size: 13px;font-weight: 500;padding: 10px 15px;color: #fff;background: #fd5c63;border: 1px solid #fd5c63;border-radius: 5px;}
+#certi_login {position:relative; clear:both;  width:100%; min-height:200px; margin:10px auto;}
+
+.main_tit {padding: 0 0 20px;margin: 20px 0 0;font-size: 22px;font-weight:700;text-align:center;color: #333;border-bottom: 1px solid #eee;}
+.main_tit a.link{font-size:14px; font-weight:300; text-decoration:none;}
+.txt a {margin: 0 5px;font-size:14px;font-weight: 400;text-decoration:none;color: #777;}
+.certi_login_left {width:100%; padding-top:10px; margin:0 auto; text-align:center;}
+.certi_login_right {position:relative; clear:both; text-align:center }
+.certi_login_in {margin:20px 0; width:100%;}
+
+.certi_login_left label {display: block; margin-bottom: 10px;}
+.certi_login_left label span.logintx {display: inline-block; margin-bottom: 3px; width: 35px; font-size: 13px; vertical-align: middle; border-right: none; }
+.loginipt_style {display: block;margin: 0 auto;margin-bottom: 10px;padding: 15px;width: 250px;border: 1px solid #ccc;border-radius: 5px;background: no-repeat;color: #1a1a1a;}
+.ipt_style {}
+
+.certi_login_left .check {}
+.certi_login_left .check span {padding: 5px 0 0 5px; vertical-align: middle; font-size: 14px; line-height:14px; }
+
+.login_save{margin-bottom:30px;width:100%;clear:both;text-align: center;}
+a.btn_red90 {display: block;padding: 13px;margin: 0 auto;margin-bottom: 10px;width: 250px;border-radius: 5px;text-align: center;line-height:16px;color:#fff;border: 1px solid #fd5c63;background: #fd5c63;}
+a.btn_black90 {display: inline-block;width: 80px;padding: 12px 40px;margin:0 5px 5px 0;text-align: center;line-height:16px;border-radius: 5px;border: 1px solid #fd5c63;color: #dc022e;}
+.btn_area3 { width:100%; text-align:center; }
+a.btn_grey90 {display: inline-block; padding: 9px 0px; margin:0 0 5px 0; width:35%; border: 1px solid #111; text-align: center; line-height:16px;}
+
+#foot_info {position: relative;clear: both;margin: 30px auto;width: 90%;font-size: 13px;text-align: center;line-height:20px;}
+#foot_info .ttxx {padding:25px 0px 15px 0; line-height:20px; }
+#foot_info .ttxx a {line-height:20px; text-decoration:underline;}
+#foot_info .bar {padding:0 5px;}
+
+.ad_wr {display: flex;flex-wrap: wrap;justify-content: center;margin: 0 auto;max-width: 1100px;}
+.ad_list {margin: 0 0 20px;padding: 20px;}
+.ad_list ul {}
+.ad_list ul li {list-style: disc;line-height: 1.7;}
+.ad_list_span {margin: 0 2px;padding: 1px 4px;font-weight: 600;background: #ff608017;color: #fd5c63;}
+
+.ad_btn {padding: 5px 0;}
+.ad_btn img {width: 100%;}
+.ad_btn div {margin: 10px 0 0;}
+
+.certi_box {margin: 30px 15px;padding: 15px;border: 1px solid #eee;}
+.adult_certi {margin: 30px 15px;padding: 15px;border: 1px solid #eee;}
+
+@media (max-width: 970px){
+    /* Adult certification conts */
+    #sub_wrap { position:relative; width:100%; margin: 0 auto;}
+    #certi_wrap { position:relative; width:95%; margin:0 auto; height:80px;}
+    #adult_certify, #logo, #adult_act {position: relative; width: 100%; margin: 20px auto; text-align: center;}
+    #adult_certify img {width: 70px;}
+    #logo img {width: 200px; padding: 5px 0;}
+    #adult_act .announcement {display: block;width: 90%;margin: 0 auto;font-size: 0.85em;line-height: 1.6em;text-align: center;}
+
+    .certi_out {font-size: 13px;font-weight: 500;padding: 10px 15px;color: #fff;background: #dc022e;border: 1px solid #dc022e;border-radius: 5px;}
+    #certi_login {position:relative; clear:both;  width:100%; min-height:200px; margin:10px auto;}
+
+    .main_tit {padding: 0 0 20px;margin: 20px 0 0;font-size: 22px;font-weight:700;text-align:center;color: #333;border-bottom: 1px solid #eee;}
+    .main_tit a.link{font-size:14px; font-weight:300; text-decoration:none;}
+    .txt a {margin: 0 5px;font-size:14px;font-weight: 400;text-decoration:none;color: #777;}
+    .certi_login_left {width:100%; padding-top:10px; margin:0 auto; text-align:center;}
+    .certi_login_right {position:relative; clear:both; text-align:center }
+    .certi_login_in {margin:20px 0; width:100%;}
+
+    .certi_login_left label {display: block; margin-bottom: 10px;}
+    .certi_login_left label span.logintx {display: inline-block; margin-bottom: 3px; width: 35px; font-size: 13px; vertical-align: middle; border-right: none; }
+    .loginipt_style {display: block;margin: 0 auto;margin-bottom: 10px;padding: 15px;width: 250px;border: 1px solid #ccc;border-radius: 5px;background: no-repeat;color: #fff;}
+    .ipt_style {}
+
+    .certi_login_left .check {}
+    .certi_login_left .check span {padding: 5px 0 0 5px; vertical-align: middle; font-size: 14px; line-height:14px; }
+
+    .login_save{margin-bottom:30px;width:100%;clear:both;text-align: center;}
+    a.btn_red90 {display: block;padding: 13px;margin: 0 auto;margin-bottom: 10px;width: 250px;border-radius: 5px;text-align: center;line-height:16px;color:#fff;border: 1px solid #fd5c63;background: #fd5c63;}
+    a.btn_black90 {display: inline-block;width: 60px;padding: 12px 40px;margin:0 5px 5px 0;text-align: center;line-height:16px;border-radius: 5px;border: 1px solid #fd5c63;color: #fd5c63;}
+    .btn_area3 { width:100%; text-align:center; }
+    a.btn_grey90 {display: inline-block; padding: 9px 0px; margin:0 0 5px 0; width:35%; border: 1px solid #111; text-align: center; line-height:16px;}
+
+    #foot_info {position: relative;clear: both;margin: 30px auto;width: 90%;font-size: 11px;text-align: center;line-height:20px;}
+    #foot_info .ttxx {padding:25px 0px 15px 0; line-height:20px; }
+    #foot_info .ttxx a {line-height:20px; text-decoration:underline;}
+    #foot_info .bar {padding:0 5px;}
+
+    .ad_wr {display: flex;flex-wrap: wrap;justify-content: center;margin: 0 auto;max-width: 1100px;}
+    .ad_list {margin: 0;padding: 20px 10px;}
+    .ad_list ul {}
+    .ad_list ul li {font-size: 13px;list-style: disc;line-height: 1.7;}
+    .ad_list_span {margin: 0 2px;padding: 1px 4px;font-weight: 600;background: #dd012e29;color: #be092e;}
+
+    .ad_btn {padding: 5px 0;}
+    .ad_btn img {width: 100%;}
+    .ad_btn div {margin: 10px 0 0;}
+
+    .certi_box {margin: 0 15px;padding: 10px 15px;border: 1px solid #eee;}
+    .adult_certi {margin: 30px 15px;padding: 15px;border: 1px solid #eee;}
+}
+
+
+
+
+

@@ -1,0 +1,146 @@
+<?php
+if (!defined("_GNUBOARD_")) exit; // 개별 페이지 접근 불가
+
+// add_stylesheet('css 구문', 출력순서); 숫자가 작을 수록 먼저 출력됨
+add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">', 0);
+add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">', 0);
+?>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
+
+<!-- 상품진열 50 시작 { -->
+
+<div class="swiper main50">
+    <?php
+    for ($i=1; $row=sql_fetch_array($result); $i++) {
+        if ($this->list_mod >= 2) { // 1줄 이미지 : 2개 이상
+            if ($i%$this->list_mod == 0) $sct_last = ' sct_last'; // 줄 마지막
+            else if ($i%$this->list_mod == 1) $sct_last = ' sct_clear'; // 줄 첫번째
+            else $sct_last = '';
+        } else { // 1줄 이미지 : 1개
+            $sct_last = ' sct_clear';
+        }
+
+        if ($i == 1) {
+            if ($this->css) {
+                echo "<ul class=\"{$this->css} swiper-wrapper\">\n";
+            } else {
+                echo "<ul class=\"sct sct_30 swiper-wrapper\">\n";
+            }
+        }
+
+        echo "<li class=\"sct_li{$sct_last} swiper-slide\" style=\"width:{$this->img_width}px\">\n";
+
+        if ($this->href) {
+            echo "<div class=\"sct_img\"><a href=\"{$this->href}{$row['it_id']}\" class=\"sct_a\">\n";
+        }
+
+        if ($this->view_it_img) {
+            //echo get_it_image($row['it_id'], $this->img_width, $this->img_height, '', '', stripslashes($row['it_name']))."\n";
+            //get it imag 변경
+            echo get_it_image($row['it_id'], $this->img_width, $this->img_height, '', '', stripslashes($row['it_name']))."\n";
+        }
+
+        if ($this->href) {
+            echo "</a></div>\n";
+        }
+
+        if ($this->view_it_id) {
+            echo "<div class=\"sct_id\">&lt;".stripslashes($row['it_id'])."&gt;</div>\n";
+        }
+
+        if ($this->href) {
+            echo "<div class=\"sct_txt\"><a href=\"{$this->href}{$row['it_id']}\" class=\"sct_a\">\n";
+        }
+
+        if ($this->view_it_name) {
+            echo stripslashes($row['it_name'])."\n";
+        }
+
+        if ($this->href) {
+            echo "</a></div>\n";
+        }
+
+        if ($this->view_it_cust_price || $this->view_it_price) {
+
+            echo "<div class=\"sct_cost\">\n";
+
+            if ($this->view_it_cust_price && $row['it_cust_price']) {
+                echo "<strike>".display_price($row['it_cust_price'])."</strike>\n";
+            }
+
+            if ($this->view_it_price) {
+                echo display_price(get_price($row), $row['it_tel_inq'])."\n";
+            }
+
+            echo "</div>\n";
+
+        }
+
+        echo "</li>\n";
+    }
+    echo "<div class='sct_30'></div>";
+    if ($i > 1) echo "</ul>\n";
+
+    if($i == 1) echo "<p class=\"sct_noitem\">등록된 상품이 없습니다.</p>\n";
+    ?>
+    <div class="swiper-pagination"></div>
+</div>
+
+
+    <!-- 제품 이미지 마우스 오버 처리  -->
+    <script type="text/javascript">
+        jQuery(document).ready(function(){
+            /*fade
+            jQuery(".image_change").on("mouseenter",function(){
+                var src = jQuery(this).attr("data-val2");
+                jQuery(this).fadeOut('fast' , function(){jQuery(this).attr("src", src)});
+                jQuery(this).fadeIn('fast');
+
+            });
+            jQuery(".image_change").on("mouseleave",function(){
+                var src = jQuery(this).attr("data-val1");
+                jQuery(this).fadeOut('fast' , function(){jQuery(this).attr("src", src)});
+                jQuery(this).fadeIn('fast');
+            });*/
+
+            /*바로 변경 주석 을 제거하시고 위의 fade 를 주석처리하세요 */
+
+            jQuery(".image_change").on("mouseenter",function(){
+                jQuery(this).attr("src", jQuery(this).attr("data-val2"));
+
+            });
+            jQuery(".image_change").on("mouseleave",function(){
+                jQuery(this).attr("src", jQuery(this).attr("data-val1"));
+            });
+
+        });
+
+        var swiper = new Swiper(".main50", {
+            slidesPerGroup : 2,
+            slidesPerView: 2,
+            spaceBetween: 5,
+            pagination: {
+                el: ".swiper-pagination",
+                clickable: true,
+            },
+            breakpoints: {
+
+                768: {
+                    slidesPerGroup : 3,
+                    slidesPerView: 3,  //브라우저가 768보다 클 때
+                    spaceBetween: 30,
+                },
+                1024: {
+                    slidesPerGroup : 4,
+                    slidesPerView: 4,  //브라우저가 1024보다 클 때
+                    spaceBetween: 10,
+                },
+            },
+        });
+
+        //-->
+    </script>
+    <!-- 제품 이미지 마우스 오버 처리 완료  -->
+
+    <!-- } 상품진열 10 끝 -->

@@ -1,0 +1,15 @@
+.wz_tbl_1,.wz_tbl_1 th,.wz_tbl_1 td{border:0;}
+.wz_tbl_1{text-align:center;margin:10px 0px;}
+.wz_tbl_1 table {clear:both;width:100%;border-collapse:collapse;border-spacing:0;background-color: #fff;}
+.wz_tbl_1 tbody, .wz_tbl_1 tr, .wz_tbl_1 td {vertical-align:middle}
+.wz_tbl_1 caption{display:none}
+.wz_tbl_1 th {padding:10px 0;border:1px solid #dcdcdc;text-align:center;font-weight:bold;background-color: #fbfbfb;}
+.wz_tbl_1 td {padding:7px;border:1px solid #e5e5e5;color:#4c4c4c;text-align:left;}
+.wz_tbl_1 th span.last:after {border:none;}
+.wz_tbl_1 td.center {text-align:center;}
+.wz_tbl_1 th.right, .wz_tbl_1 td.right {text-align:right;padding-right:5px;}
+.wz_tbl_1 tr.bg0 {background-color:#fff}
+.wz_tbl_1 tr.bg1 {background-color:#fbfbfb}
+.wz_tbl_1 td .numberic {text-align:right;padding-right:4px;}
+
+.wz-label {height:auto;background: #ededed;text-decoration: none;vertical-align: middle;padding:3px 10px;border:1px solid #dfdfdf}

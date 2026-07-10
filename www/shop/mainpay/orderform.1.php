@@ -1,0 +1,27 @@
+<?php
+if (!defined("_GNUBOARD_")) exit; // 개별 페이지 접근 불가
+// 전자결제를 사용할 때만 실행
+if($default['de_iche_use'] || $default['de_vbank_use'] || $default['de_hp_use'] || $default['de_card_use'] || $default['de_easy_pay_use']) {
+    ?>
+    <script src="https://api-std.mainpay.co.kr/js/mainpay.pc-1.1.js"></script>
+    <script type='text/javascript'>
+        var READY_API_URL = "/plugin/mainpay/pc/_2_ready.php";
+        function payment() {
+            var request = Mainpay.ready(READY_API_URL);
+            request.done(function(response) {
+                if (response.resultCode == '200') {
+                    /* 결제창 호출 */
+                    Mainpay.open(response.data.nextPcUrl); //*주의* PC와 Mobile은 URL이 상이합니다.
+                    return false;
+                }
+                alert("ERROR : "+JSON.stringify(response));
+            });
+        }
+        window.onpopstate = function(){ history.go(-1)};
+
+        /* 결제 팝업이 닫혔을 경우 호출*/
+        function mainpay_close_event() {
+            alert("결제창이 닫혔습니다.");
+        }
+    </script>
+<?php } ?>

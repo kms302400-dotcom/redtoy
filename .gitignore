@@ -1,0 +1,24 @@
+# 영카트 운영 데이터
+www/data/
+
+# DB 백업 및 로그
+*.sql
+*.log
+
+# 서버 백업 압축파일
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# 환경설정
+.env
+.env.*
+
+# 본인인증·결제 키
+www/plugin/okname/key/*.key
+www/shop/kcp/bin/*.key
+
+# Git 백업 파일
+*.bundle
+*.patch

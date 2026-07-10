@@ -1,0 +1,17 @@
+User-agent: *
+Disallow: /adm/
+Disallow: /admin/
+Disallow: /cart.php
+Disallow: /checkout/
+Disallow: /member/
+Disallow: /login.php
+Disallow: /register.php
+Disallow: /orderinquiry.php
+Disallow: /mypage.php
+
+Allow: /shop/
+Allow: /img/
+Allow: /data/
+Allow: /19.php
+
+Sitemap: https://redtoy.co.kr/sitemap.xml
