@@ -72,6 +72,12 @@ if($config['cf_add_meta'])
     $facebook_img = "";
     $twitter_img = "";
     $seo_keyword ="";
+    $request_path = parse_url(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/', PHP_URL_PATH);
+    $request_path = rtrim($request_path, '/');
+    if ($request_path === '') {
+        $request_path = '/';
+    }
+    $is_shop_main = defined('_INDEX_') && in_array($request_path, array('/', '/index.php', '/shop', '/shop/index.php'), true);
     $sql= " SELECT 1 FROM information_schema.tables WHERE TABLE_NAME like 'g5_redcomm_seo'" ;
     $row_table = sql_fetch($sql);
 
@@ -158,7 +164,9 @@ if($config['cf_add_meta'])
         echo '<title>'.$g5_head_title.'</title>'.PHP_EOL;
         echo '<meta name="description" content="'.$meta_description.'">'.PHP_EOL;
         echo '<meta name="naver-site-verification" content="86c4ccb74ac094c5192dec4bbafd311fb7b8a1d8">'.PHP_EOL;
-        echo '<link rel="canonical" href="https://'. $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] .'"/>'.PHP_EOL;
+        echo '<link rel="canonical" href="'.($is_shop_main ? 'https://www.redtoy.co.kr/' : 'https://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'"/>'.PHP_EOL;
+    } else if ($is_shop_main) {
+        echo '<link rel="canonical" href="https://www.redtoy.co.kr/"/>'.PHP_EOL;
     }
 
     if($meta_title != "") {

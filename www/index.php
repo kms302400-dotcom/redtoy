@@ -41,20 +41,6 @@ if (isset($_REQUEST['pid'])) { // PartnerID 를 가지고 들어 왔을때 처�
 	}
 }
 
-/* 성인인증 미사용시 삭제 */
-if(empty($_SESSION['ss_mb_id'])){
-    if (G5_IS_MOBILE) {
-        if ($_SESSION['ss_cert_adult'] != 'OK') {
-            goto_url('/19m.php');
-        }
-    } else {
-        if ($_SESSION['ss_cert_adult'] != 'OK') {
-            goto_url('/19m.php');
-        }
-    }
-}
-/* 성인인증 미사용시 삭제 */
-
 if(defined('G5_THEME_PATH')) {
     require_once(G5_THEME_PATH.'/index.php');
     return;
