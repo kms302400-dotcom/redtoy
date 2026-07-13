@@ -36,6 +36,13 @@ if ($od_send_alimtalk) {
         $tpl = $bizmsg->getMsg('입금확인');
         if ($tpl) {
 
+            $alimtalk_receipt_price = (int) $od['od_receipt_price'];
+            if ($od['od_settle_case'] === '무통장' && (int) $od['od_misu'] === 0) {
+                $alimtalk_receipt_price = (int) $od['od_cart_price'] + (int) $od['od_send_cost'] + (int) $od['od_send_cost2']
+                    - (int) $od['od_cart_coupon'] - (int) $od['od_coupon'] - (int) $od['od_send_coupon']
+                    - (int) $od['od_cancel_price'] - (int) $od['od_receipt_point'];
+            }
+
             $tmplId = $tpl['tmplId'];
             $msg = $tpl['msg'];
             $buttons = $tpl['buttons'];
@@ -47,7 +54,7 @@ if ($od_send_alimtalk) {
             $src[] = "/#{주문자명}/";
             $dst[] = $od['od_name'];
             $src[] = "/#{입금액}/";
-            $dst[] = number_format($od['od_receipt_price']).'원';
+            $dst[] = number_format(max(0, $alimtalk_receipt_price)).'원';
             $src[] = "/#{주문번호}/";
             $dst[] = $od_id;
 

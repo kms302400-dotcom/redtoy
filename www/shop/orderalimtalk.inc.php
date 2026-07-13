@@ -36,7 +36,7 @@ if ($order_hp) {
         $src[] = "/#{배송지}/";
         $dst[] = $od_b_addr1.' '.$od_b_addr2.' '.$od_b_addr3;
         $src[] = "/#{주문금액}/";
-        $dst[] = number_format($tot_ct_price + $od_send_cost + $od_send_cost2).'원';
+        $dst[] = number_format(max(0, (int) $order_price)).'원';
 
         $bizmsg->phn = $order_hp;
         $bizmsg->tmplId = $tmplId;
@@ -106,7 +106,7 @@ if ($tpl) {
     $src[] = "/#{배송지}/";
     $dst[] = $od_b_addr1.' '.$od_b_addr2.' '.$od_b_addr3;
     $src[] = "/#{주문금액}/";
-    $dst[] = number_format($tot_ct_price + $od_send_cost + $od_send_cost2).'원';
+    $dst[] = number_format(max(0, (int) $order_price)).'원';
 
     $cf = sql_fetch("select cf_receiver from {$g5['wz_alimtalk_config_table']}");
     $cf_receiver = $cf['cf_receiver'];
