@@ -37,7 +37,7 @@ if ($od_send_alimtalk) {
         if ($tpl) {
 
             $alimtalk_receipt_price = (int) $od['od_receipt_price'];
-            if ($od['od_settle_case'] === '무통장' && (int) $od['od_misu'] === 0) {
+            if ($od['od_settle_case'] === '무통장' && (int) $od['od_misu'] <= 0) {
                 $alimtalk_receipt_price = (int) $od['od_cart_price'] + (int) $od['od_send_cost'] + (int) $od['od_send_cost2']
                     - (int) $od['od_cart_coupon'] - (int) $od['od_coupon'] - (int) $od['od_send_coupon']
                     - (int) $od['od_cancel_price'] - (int) $od['od_receipt_point'];
