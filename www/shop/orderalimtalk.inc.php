@@ -68,7 +68,7 @@ if ($order_hp) {
             $src[] = "/#{주문번호}/";
             $dst[] = $od_id;
             $src[] = "/#{입금금액}/";
-            $dst[] = number_format($od_misu).'원';
+            $dst[] = number_format(max(0, (int) $order_price)).'원';
             $src[] = "/#{입금계좌}/";
             $dst[] = $od_bank_account;
 
