@@ -25,12 +25,12 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
     <section class="idx_only">
         <div class="main_tit_wrap">
             <h2 class="title"><a href="<?php echo shop_type_url('4'); ?>">레드토이에서 <span class="c_pick">가장 인기있는</span> 제품</a></h2>
-            <div class="sub_title">이번 주 가장 <span class="sub_name">잘나가는 토이</span>를 지금 바로 만나보세요.</div>
+            <div class="sub_title">이번 주 가장 <span class="sub_name">잘나가는 제품</span>을 지금 바로 만나보세요.</div>
         </div>
         <!-- 카테고리 -->
         <div class="category_line tab_title" id="category_best">
             <ul class="bo_top cate_box">
-                <li id="cate_1" class="on">최근 가장 핫한 토이</li>
+                <li id="cate_1" class="on">최근 가장 핫한 제품</li>
                 <?php if (!$is_pg_review_test_member) { ?>
                 <li id="cate_2">나홀로 오나홀</li>
                 <li id="cate_3">매혹적인 란제리</li>
