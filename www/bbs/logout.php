@@ -2,6 +2,8 @@
 define('G5_CERT_IN_PROG', true);
 include_once('./_common.php');
 
+$is_pg_review_test_logout = function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member();
+
 if(function_exists('social_provider_logout')){
     social_provider_logout();
 }
@@ -42,6 +44,10 @@ if ($url) {
     $link = get_pretty_url($bo_table);
 } else {
     $link = G5_URL;
+}
+
+if ($is_pg_review_test_logout) {
+    $link = G5_URL.'/19m.php?url=/';
 }
 
 run_event('member_logout', $link);
