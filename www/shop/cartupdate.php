@@ -184,6 +184,8 @@ else // 장바구니에 담기
         $it = get_shop_item($it_id, false);
         if(!$it['it_id'])
             alert('상품정보가 존재하지 않습니다.');
+        if (function_exists('redtoy_pg_review_is_hidden_item') && redtoy_pg_review_is_hidden_item($it))
+            alert('검수 계정에서는 해당 상품을 장바구니에 담을 수 없습니다.');
 
         // 바로구매에 있던 장바구니 자료를 지운다.
         if($i == 0 && $sw_direct)

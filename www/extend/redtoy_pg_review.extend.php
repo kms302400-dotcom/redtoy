@@ -176,6 +176,16 @@ function redtoy_pg_review_block_access()
     $request_path = parse_url($request_uri, PHP_URL_PATH);
     $request_path = is_string($request_path) ? $request_path : '';
     $request_path = $request_path === '/' ? '/' : rtrim($request_path, '/');
+    $cart_update_endpoints = array(
+        '/shop/cartupdate.php',
+        '/mobile/shop/cartupdate.php',
+        '/shop/ajax.cartupdate.php',
+        '/theme/buzinga/shop/ajax.cartupdate.php'
+    );
+    if (in_array($script, $cart_update_endpoints, true) || in_array($request_path, $cart_update_endpoints, true)) {
+        return;
+    }
+
     $ca_id = isset($_REQUEST['ca_id']) ? preg_replace('/[^0-9a-z]/i', '', $_REQUEST['ca_id']) : '';
     if (!$ca_id && preg_match('#^/shop/list-([0-9a-z]+)$#i', $request_path, $matches)) {
         $ca_id = $matches[1];
