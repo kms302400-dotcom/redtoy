@@ -2,7 +2,16 @@
 	header( "Pragma: No-Cache" );
 	include_once('./_common.php');
 	include( "../lib/danal_function_teledit.php" );
-	
+
+	if (function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member()) {
+		$pg_review_it_ids = isset($_POST['it_id']) ? (array) $_POST['it_id'] : array();
+		foreach ($pg_review_it_ids as $pg_review_it_id) {
+			if (is_scalar($pg_review_it_id) && redtoy_pg_review_is_hidden_item_id($pg_review_it_id)) {
+				alert('검수 계정에서는 해당 상품을 결제할 수 없습니다.');
+			}
+		}
+	}
+
 	$mb = get_member($_SESSION["ss_mb_id"]);
 
 	/********************************************************************************

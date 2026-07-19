@@ -176,13 +176,17 @@ function redtoy_pg_review_block_access()
     $request_path = parse_url($request_uri, PHP_URL_PATH);
     $request_path = is_string($request_path) ? $request_path : '';
     $request_path = $request_path === '/' ? '/' : rtrim($request_path, '/');
-    $cart_update_endpoints = array(
+    $request_parsing_excluded_endpoints = array(
         '/shop/cartupdate.php',
         '/mobile/shop/cartupdate.php',
         '/shop/ajax.cartupdate.php',
-        '/theme/buzinga/shop/ajax.cartupdate.php'
+        '/theme/buzinga/shop/ajax.cartupdate.php',
+        '/shop/danal_ready.php',
+        '/mobile/shop/danal_ready.php',
+        '/shop/danal_ready_teledit.php',
+        '/mobile/shop/danal_ready_teledit.php'
     );
-    if (in_array($script, $cart_update_endpoints, true) || in_array($request_path, $cart_update_endpoints, true)) {
+    if (in_array($script, $request_parsing_excluded_endpoints, true) || in_array($request_path, $request_parsing_excluded_endpoints, true)) {
         return;
     }
 
