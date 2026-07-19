@@ -9,6 +9,7 @@ $bn = array(
 'bn_id'=>0,
 'bn_alt'=>'',
 'bn_device'=>'',
+'bn_pg_review'=>0,
 'bn_position'=>'',
 'bn_border'=>'',
 'bn_new_win'=>'',
@@ -102,6 +103,13 @@ include_once (G5_ADMIN_PATH.'/admin.head.php');
                 <option value="pc"<?php echo get_selected($bn['bn_device'], 'pc'); ?>>PC</option>
                 <option value="mobile"<?php echo get_selected($bn['bn_device'], 'mobile'); ?>>모바일</option>
         </select>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row"><label for="bn_pg_review">검수용 사이트 노출</label></th>
+        <td>
+            <?php echo help('PG 검수용 test 계정에서만 노출'); ?>
+            <input type="checkbox" name="bn_pg_review" value="1" id="bn_pg_review"<?php echo get_checked($bn['bn_pg_review'], 1); ?>>
         </td>
     </tr>
     <tr>

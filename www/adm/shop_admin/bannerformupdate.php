@@ -23,6 +23,7 @@ $bn_bimg_del = (isset($_POST['bn_bimg_del']) && $_POST['bn_bimg_del']) ? preg_re
 $bn_url = isset($_POST['bn_url']) ? strip_tags(clean_xss_attributes($bn_url)) : '';
 $bn_alt = isset($_POST['bn_alt']) ? strip_tags(clean_xss_attributes($bn_alt)) : '';
 $bn_device = isset($_POST['bn_device']) ? clean_xss_tags($_POST['bn_device'], 1, 1) : '';
+$bn_pg_review = isset($_POST['bn_pg_review']) && (int) $_POST['bn_pg_review'] === 1 ? 1 : 0;
 $bn_position = isset($_POST['bn_position']) ? clean_xss_tags($_POST['bn_position'], 1, 1) : '';
 $bn_border = isset($_POST['bn_border']) ? (int) $_POST['bn_border'] : 0;
 $bn_new_win = isset($_POST['bn_new_win']) ? (int) $_POST['bn_new_win'] : 0;
@@ -55,6 +56,7 @@ if ($w=="")
                 set bn_alt        = '$bn_alt',
                     bn_url        = '$bn_url',
                     bn_device     = '$bn_device',
+                    bn_pg_review  = '$bn_pg_review',
                     bn_position   = '$bn_position',
                     bn_border     = '$bn_border',
                     bn_new_win    = '$bn_new_win',
@@ -73,6 +75,7 @@ else if ($w=="u")
                 set bn_alt        = '$bn_alt',
                     bn_url        = '$bn_url',
                     bn_device     = '$bn_device',
+                    bn_pg_review  = '$bn_pg_review',
                     bn_position   = '$bn_position',
                     bn_border     = '$bn_border',
                     bn_new_win    = '$bn_new_win',

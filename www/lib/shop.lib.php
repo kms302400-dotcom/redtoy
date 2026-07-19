@@ -1385,8 +1385,15 @@ function display_banner($skin='')
         if(MobileCheck() == "Mobile")
             $sql_device = " and ( bn_device = 'both' or bn_device = 'mobile' ) ";
 
+        $sql_pg_review = '';
+        if ($skin === 'mainbanner.10.skin.php'
+            && function_exists('redtoy_pg_review_is_test_member')
+            && redtoy_pg_review_is_test_member()) {
+            $sql_pg_review = " and bn_pg_review = '1' ";
+        }
+
         // 배너 출력
-        $sql = " select * from {$g5['g5_shop_banner_table']} where '".G5_TIME_YMDHIS."' between bn_begin_time and bn_end_time $sql_device  order by bn_order, bn_id desc ";
+        $sql = " select * from {$g5['g5_shop_banner_table']} where '".G5_TIME_YMDHIS."' between bn_begin_time and bn_end_time $sql_device $sql_pg_review order by bn_order, bn_id desc ";
         $result = sql_query($sql);
 
         include $skin_path;
