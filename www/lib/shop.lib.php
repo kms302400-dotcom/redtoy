@@ -328,6 +328,12 @@ class item_list
                 $sql_select = " select {$this->fields} ";
                 $sql_common = " from `{$g5['g5_shop_item_table']}` ";
             }
+            if (function_exists('redtoy_pg_review_item_sql_condition')) {
+                $pg_review_sql = redtoy_pg_review_item_sql_condition($this->event ? 'b' : '');
+                if ($pg_review_sql) {
+                    $where[] = $pg_review_sql;
+                }
+            }
             $sql_where = " where " . implode(" and ", $where);
             $sql_limit = " limit " . $this->from_record . " , " . ($this->list_mod * $this->list_row);
 
@@ -353,6 +359,10 @@ class item_list
 
         if( isset($result) && $result ){
             while ($row=sql_fetch_array($result)) {
+
+                if (function_exists('redtoy_pg_review_is_hidden_item') && redtoy_pg_review_is_hidden_item($row)) {
+                    continue;
+                }
 
                 if( isset($row['it_seo_title']) && ! $row['it_seo_title'] ){
                     shop_seo_title_update($row['it_id']);

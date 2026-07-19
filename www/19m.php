@@ -1,5 +1,51 @@
-<?
+<?php
 include("./common.php");
+
+if (!function_exists('redtoy_validate_adult_return_url')) {
+    function redtoy_validate_adult_return_url($url)
+    {
+        if (!is_string($url)) {
+            return '/';
+        }
+
+        $url = trim($url);
+        $decoded_url = rawurldecode($url);
+        if ($url === ''
+            || preg_match('#^https?://#i', $url)
+            || substr($url, 0, 1) !== '/'
+            || substr($url, 0, 2) === '//'
+            || substr($decoded_url, 0, 2) === '//'
+            || strpos($url, '\\') !== false
+            || strpos($decoded_url, '\\') !== false
+            || preg_match('/[\x00-\x1F\x7F]/', $decoded_url)) {
+            return '/';
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path)) {
+            return '/';
+        }
+
+        $normalized_segments = array();
+        foreach (explode('/', rawurldecode($path)) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($normalized_segments);
+                continue;
+            }
+            $normalized_segments[] = $segment;
+        }
+
+        $normalized_path = '/'.implode('/', $normalized_segments);
+        if (preg_match('#^/(?:19_ok|19m)\.php(?:/|$)#i', $normalized_path)) {
+            return '/';
+        }
+
+        return $url;
+    }
+}
 
 if (!isset($g5['title'])) {
     $g5['title'] = $config['cf_title'];
@@ -10,14 +56,29 @@ else {
     $g5_head_title .= " | ".$config['cf_title'];
 }
 
-//set_cookie("ss_cert_adult", "", -1);
-$reAdult = get_cookie("ss_cert_adult");
-if ($reAdult == "OK") {
-    set_session('ss_cert_adult',   "OK");
-    header("Location: /");
+// 이미 로그인했거나 성인인증이 완료된 사용자는 정상 메인으로 진입시킨다.
+$reAdult = get_cookie('ss_cert_adult');
+if ($is_member || get_session('ss_cert_adult') === 'OK' || $reAdult === 'OK') {
+    if (!$is_member && get_session('ss_cert_adult') !== 'OK' && $reAdult === 'OK') {
+        set_session('ss_cert_adult', 'OK');
+    }
+    goto_url(G5_URL.'/');
 }
 
-set_session('ss_cert_url', $_GET['url']);
+$cert_url = redtoy_validate_adult_return_url(isset($_GET['url']) ? $_GET['url'] : '/');
+set_session('ss_cert_url', $cert_url);
+
+$pg_review_company = function_exists('redtoy_pg_review_get_company_info') ? redtoy_pg_review_get_company_info() : array();
+$display_company_name = $pg_review_company ? $pg_review_company['company_name'] : '(주)인센스글로벌';
+$display_company_owner = $pg_review_company ? $pg_review_company['company_owner'] : $default['de_admin_company_owner'];
+$display_company_address = $pg_review_company ? $pg_review_company['company_address'] : $default['de_admin_company_addr'];
+$display_business_number = $pg_review_company ? $pg_review_company['business_number'] : $default['de_admin_company_saupja_no'];
+$display_online_sales_number = $pg_review_company ? $pg_review_company['online_sales_number'] : $default['de_admin_tongsin_no'];
+$display_privacy_officer = $pg_review_company ? $pg_review_company['privacy_officer'] : $default['de_admin_info_name'];
+$display_email = $pg_review_company ? $pg_review_company['email'] : 'incense0523@gmail.com';
+$display_customer_service = $pg_review_company ? $pg_review_company['customer_service'] : '02-6101-9272';
+$display_fax = $pg_review_company ? $pg_review_company['fax'] : $default['de_admin_company_fax'];
+$display_copyright = $pg_review_company ? $pg_review_company['copyright'] : '© 2024 REDCommerce. All Rights Reserved.';
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="ko" xml:lang="ko">
@@ -311,16 +372,17 @@ set_session('ss_cert_url', $_GET['url']);
 
         <div id="foot_info">
             <div id="ft_if" class="ft_con">
-                <span>(주)인센스글로벌</span>
+                <span><?php echo get_text($display_company_name); ?></span>
                 <br>
-                <span>대표자 : <?php echo $default['de_admin_company_owner']; ?> | E-mail : incense0523@gmail.com</span>
+                <span>대표자 : <?php echo get_text($display_company_owner); ?> | E-mail : <?php echo get_text($display_email); ?></span>
                 <br>
-                <span>주소 : <?php echo $default['de_admin_company_addr']; ?></span><br>
-                <span>사업자등록번호 : <?php echo $default['de_admin_company_saupja_no']; ?></span><br>
-                <span>통신판매업신고번호 : <?php echo $default['de_admin_tongsin_no']; ?></span><br>
-                <span>개인정보 보호책임자 : <?php echo $default['de_admin_info_name']; ?></span><br>
-                <span>고객센터 02-6101-9272 &emsp;※ 평일 10:00 - 18:00 (주말, 공휴일 휴무)</span><br><br>
-                <span>© 2024 REDCommerce. All Rights Reserved.</span>
+                <span>주소 : <?php echo get_text($display_company_address); ?></span><br>
+                <span>사업자등록번호 : <?php echo get_text($display_business_number); ?></span><br>
+                <span>통신판매업신고번호 : <?php echo get_text($display_online_sales_number); ?></span><br>
+                <span>개인정보 보호책임자 : <?php echo get_text($display_privacy_officer); ?></span><br>
+                <span>팩스 : <?php echo get_text($display_fax); ?></span><br>
+                <span>고객센터 <?php echo get_text($display_customer_service); ?> &emsp;※ 평일 10:00 - 18:00 (주말, 공휴일 휴무)</span><br><br>
+                <span><?php echo get_text($display_copyright); ?></span>
             </div>        
         </div>
     </div>

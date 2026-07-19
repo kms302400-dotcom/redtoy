@@ -107,7 +107,9 @@ function get_shop_category_array($is_cache=false){
     $categories = run_replace('get_shop_category_array', $categories, $is_cache);
 
     if( $is_cache && !empty($categories) ){
-        return $categories;
+        return function_exists('redtoy_pg_review_filter_category_tree')
+            ? redtoy_pg_review_filter_category_tree($categories)
+            : $categories;
     }
 
     $result = sql_query(get_shop_category_sql('', 2));
@@ -137,7 +139,9 @@ function get_shop_category_array($is_cache=false){
         }   //end if
     }   //end for
     
-    return $categories;
+    return function_exists('redtoy_pg_review_filter_category_tree')
+        ? redtoy_pg_review_filter_category_tree($categories)
+        : $categories;
 }
 
 function get_shop_category_sql($ca_id, $len){

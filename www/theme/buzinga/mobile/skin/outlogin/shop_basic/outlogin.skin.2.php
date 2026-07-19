@@ -41,7 +41,9 @@ for($k=0; $cp=sql_fetch_array($res); $k++) {
         <ul id="ol_after_private">
             <li><a href="<?php echo G5_SHOP_URL; ?>/mypage.php"><i class="fas fa-user"></i>마이페이지</a></li>
             <li><a href="<?php echo G5_SHOP_URL; ?>/couponzone.php"><i class="fas fa-gift"></i>쿠폰존</a></li>
+            <?php if (!(function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member())) { ?>
             <li><a href="<?php echo G5_SHOP_URL; ?>/itemuselist.php"><i class="fas fa-camera-retro"></i>사용후기</a></li>
+            <?php } ?>
             <li><a href="<?php echo G5_BBS_URL; ?>/faq.php"><i class="far fa-question-circle"></i>고객센터</a></li>
             <li><a href="<?php echo G5_BBS_URL; ?>/qalist.php"><i class="fas fa-comments"></i>1:1문의</a></li>
             <?php if ($is_admin) {  ?>

@@ -1,6 +1,19 @@
 <?php
 include_once('./_common.php');
 
+if (function_exists('redtoy_pg_review_is_enabled')
+    && redtoy_pg_review_is_enabled()
+    && !$is_member
+    && get_session('ss_cert_adult') !== 'OK'
+    && get_cookie('ss_cert_adult') !== 'OK') {
+    $pg_review_return_url = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
+    if ($pg_review_return_url === '' || substr($pg_review_return_url, 0, 1) !== '/' || substr($pg_review_return_url, 0, 2) === '//') {
+        $pg_review_return_url = '/';
+    }
+    $pg_review_url_param = $pg_review_return_url === '/' ? '/' : rawurlencode($pg_review_return_url);
+    goto_url(G5_URL.'/19m.php?url='.$pg_review_url_param);
+}
+
 define('_INDEX_', true);
 if (!defined('_GNUBOARD_')) exit; // 개별 페이지 접근 불가
 

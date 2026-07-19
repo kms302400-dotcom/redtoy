@@ -13,6 +13,7 @@ include_once(G5_LIB_PATH.'/visit.lib.php');
 include_once(G5_LIB_PATH.'/connect.lib.php');
 include_once(G5_LIB_PATH.'/popular.lib.php');
 include_once(G5_LIB_PATH.'/latest.lib.php');
+$is_pg_review_test_member = function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member();
 ?>
 
 
@@ -35,7 +36,7 @@ include_once(G5_LIB_PATH.'/latest.lib.php');
 	            <li><a href="<?php echo G5_BBS_URL ?>/faq.php">FAQ</a></li>
 	            <li><a href="<?php echo G5_BBS_URL ?>/qalist.php">1:1문의</a></li>
 	            <li><a href="<?php echo G5_SHOP_URL ?>/personalpay.php">개인결제</a></li>
-	            <li><a href="<?php echo G5_SHOP_URL ?>/itemuselist.php">사용후기</a></li> 
+	            <?php if (!$is_pg_review_test_member) { ?><li><a href="<?php echo G5_SHOP_URL ?>/itemuselist.php">사용후기</a></li><?php } ?>
 	            <li><a href="<?php echo G5_SHOP_URL ?>/itemqalist.php">상품문의</a></li>
 	        </ul>
 		</div>
@@ -90,7 +91,7 @@ include_once(G5_LIB_PATH.'/latest.lib.php');
             <li><a href="<?php echo shop_type_url(2); ?>">추천상품</a></li>
             <li><a href="<?php echo shop_type_url(3); ?>">최신상품</a></li>
             <li><a href="<?php echo shop_type_url(4); ?>">인기상품</a></li>
-            <li><a href="<?php echo shop_type_url(5); ?>">할인상품</a></li>
+            <?php if (!$is_pg_review_test_member) { ?><li><a href="<?php echo shop_type_url(5); ?>">할인상품</a></li><?php } ?>
         </ul>
     </div> 
 </div>
@@ -116,7 +117,7 @@ include_once(G5_LIB_PATH.'/latest.lib.php');
 					<li><a href="<?php echo G5_BBS_URL ?>/faq.php">FAQ</a></li>
 		            <li><a href="<?php echo G5_BBS_URL ?>/qalist.php">1:1문의</a></li>
 		            <li><a href="<?php echo G5_SHOP_URL ?>/personalpay.php">개인결제</a></li>
-		            <li><a href="<?php echo G5_SHOP_URL ?>/itemuselist.php">사용후기</a></li>
+	            <?php if (!$is_pg_review_test_member) { ?><li><a href="<?php echo G5_SHOP_URL ?>/itemuselist.php">사용후기</a></li><?php } ?>
 		            <li><a href="<?php echo G5_SHOP_URL ?>/itemqalist.php">상품문의</a></li>
 		            <li><a href="<?php echo G5_SHOP_URL; ?>/couponzone.php">쿠폰존</a></li>
 		        </ul>

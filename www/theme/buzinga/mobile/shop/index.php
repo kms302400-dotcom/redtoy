@@ -3,6 +3,8 @@ include_once('./_common.php');
 
 if (!defined('_INDEX_')) define('_INDEX_', true);
 
+$is_pg_review_test_member = function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member();
+
 include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
 ?>
 
@@ -29,10 +31,12 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
         <div class="category_line tab_title" id="category_best">
             <ul class="bo_top cate_box">
                 <li id="cate_1" class="on">최근 가장 핫한 토이</li>
+                <?php if (!$is_pg_review_test_member) { ?>
                 <li id="cate_2">나홀로 오나홀</li>
                 <li id="cate_3">매혹적인 란제리</li>
                 <li id="cate_4">새롭고 짜릿하게</li>
                 <li id="cate_5">알차게 활용하는 Tip</li>
+                <?php } ?>
             </ul>
         </div>
         <!-- 카테고리 end -->
@@ -53,6 +57,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
                     echo $list->run();
                     ?>
                 </div>
+                <?php if (!$is_pg_review_test_member) { ?>
                 <div class="sct_wrap" id="hit_list_2" style="display:none">
                     <?php
                     $list = new item_list();
@@ -113,6 +118,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
                     echo $list->run();
                     ?>
                 </div>
+                <?php } ?>
             <?php } ?>
         </div>
     </section>
@@ -130,6 +136,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
     </script>
     <!-- 베스트셀러 -->
 
+    <?php if (!$is_pg_review_test_member) { ?>
     <div class="gap"></div>
 
     <section class="idx_only">
@@ -213,6 +220,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
             <?php } ?>
         </div>
     </section>
+    <?php } ?>
 
     <script>
         $(document).ready(function() {
@@ -226,6 +234,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
         });
     </script>
 
+    <?php if (!$is_pg_review_test_member) { ?>
     <div class="gap"></div>
 
     <section class="idx_only">
@@ -252,6 +261,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
             </div>
         <?php } ?>
     </section>
+    <?php } ?>
 
     <div class="gap"></div>
 
@@ -387,6 +397,15 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
 
 
 
+<?php
+$pg_review_company = function_exists('redtoy_pg_review_get_company_info') ? redtoy_pg_review_get_company_info() : array();
+$structured_company_name = $pg_review_company ? $pg_review_company['company_name'] : '레드토이';
+$structured_address_region = $pg_review_company ? $pg_review_company['address_region'] : '서울시';
+$structured_address_locality = $pg_review_company ? $pg_review_company['address_locality'] : '송파구';
+$structured_street_address = $pg_review_company ? $pg_review_company['street_address'] : '백제고분로 509, 7289호';
+$structured_email = $pg_review_company ? $pg_review_company['email'] : 'incense0523@gmail.com';
+$structured_telephone = $pg_review_company ? $pg_review_company['customer_service'] : '02-6101-9272';
+?>
 <!-- JSON-LD 구조화 데이터: 사이트의 조직(Organization) 및 매장(Store) 정보를 검색엔진에 제공  -->
     <script type="application/ld+json">
         {
@@ -396,6 +415,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
                 "@type": "Organization",
                 "@id": "https://www.redtoy.co.kr/#organization",
                 "name": "레드토이",
+                "legalName": <?php echo json_encode($structured_company_name, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>,
                 "url": "https://www.redtoy.co.kr",
                 "logo": {
                     "@type": "ImageObject",
@@ -412,12 +432,12 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
                 "address": {
                     "@type": "PostalAddress",
                     "addressCountry": "KR",
-                    "addressLocality": "서울시",
-                    "addressRegion": "송파구",
-                    "streetAddress": "백제고분로 509, 7289호"
+                    "addressLocality": <?php echo json_encode($structured_address_locality, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>,
+                    "addressRegion": <?php echo json_encode($structured_address_region, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>,
+                    "streetAddress": <?php echo json_encode($structured_street_address, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>
                 },
-                "email": "incense0523@gmail.com",
-                "telephone": "02-6101-9272",
+                "email": <?php echo json_encode($structured_email, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>,
+                "telephone": <?php echo json_encode($structured_telephone, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>,
                 "openingHours": "Monday,Tuesday,Wednesday,Thursday,Friday 09:00-18:00"
                 }
             ]

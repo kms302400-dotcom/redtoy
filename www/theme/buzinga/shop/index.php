@@ -99,9 +99,11 @@ $(function(){
 <!-- } 추천상품 끝 -->
 <?php } ?>
 
-<?php include_once(G5_SHOP_SKIN_PATH.'/boxevent.skin.php'); // 이벤트 ?>
+<?php if (!(function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member())) {
+    include_once(G5_SHOP_SKIN_PATH.'/boxevent.skin.php'); // 이벤트
+} ?>
 
-<?php if($default['de_type5_list_use']) { ?>
+<?php if($default['de_type5_list_use'] && !(function_exists('redtoy_pg_review_is_test_member') && redtoy_pg_review_is_test_member())) { ?>
 <!-- 할인상품 시작 { -->
 <section class="sct_wrap">
     <header>
