@@ -1,6 +1,10 @@
 <?php
 if (!defined('_GNUBOARD_')) exit; // 개별 페이지 접근 불가
 
+// CLI 작업은 브라우저 쿠키를 유지하지 않으므로 실행할 때마다 방문자로 기록될 수 있다.
+// 실제 웹 요청에만 기존 방문자 집계를 적용한다.
+if (in_array(PHP_SAPI, array('cli', 'phpdbg'), true)) return;
+
 // 컴퓨터의 아이피와 쿠키에 저장된 아이피가 다르다면 테이블에 반영함
 if (get_cookie('ck_visit_ip') != $_SERVER['REMOTE_ADDR'])
 {
