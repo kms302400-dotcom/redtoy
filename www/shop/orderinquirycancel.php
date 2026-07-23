@@ -1,5 +1,6 @@
 <?php
 include_once('./_common.php');
+include_once(G5_ADMIN_PATH.'/shop_admin/redtoy_statistics.lib.php');
 
 $od_id = isset($_REQUEST['od_id']) ? safe_replace_regex($_REQUEST['od_id'], 'od_id') : '';
 
@@ -184,6 +185,15 @@ $sql = " update {$g5['g5_shop_order_table']}
                 od_shop_memo = concat(od_shop_memo,\"\\n주문자 본인 직접 취소 - ".G5_TIME_YMDHIS." (취소이유 : {$cancel_memo})\")
             where od_id = '$od_id' ";
 sql_query($sql);
+
+$redtoy_statistics_after_order = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+redtoy_statistics_record_cancel_event(
+    $od,
+    $redtoy_statistics_after_order,
+    '고객전체취소',
+    'shop_orderinquirycancel',
+    ''
+);
 
 // 주문취소 회원의 포인트를 되돌려 줌
 if ($od['od_receipt_point'] > 0)

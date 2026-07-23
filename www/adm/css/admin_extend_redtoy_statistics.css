@@ -1,0 +1,42 @@
+.redtoy-statistics-wrap {
+    overflow-x: auto;
+}
+
+.redtoy-statistics-table {
+    min-width: 1500px;
+    table-layout: auto;
+    white-space: nowrap;
+}
+
+.redtoy-statistics-table th,
+.redtoy-statistics-table td {
+    padding-left: 9px;
+    padding-right: 9px;
+    text-align: right;
+}
+
+.redtoy-statistics-table th {
+    text-align: center;
+}
+
+.redtoy-statistics-table .stat-date {
+    text-align: center;
+}
+
+.redtoy-statistics-table .stat-total {
+    background: #fff2c9;
+    font-weight: 700;
+}
+
+.redtoy-statistics-table tfoot td {
+    background: #f2f2f2;
+    font-weight: 700;
+}
+
+.redtoy-statistics-table .stat-saturday {
+    color: #2457d6;
+}
+
+.redtoy-statistics-table .stat-sunday {
+    color: #d62929;
+}

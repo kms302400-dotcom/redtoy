@@ -1,0 +1,399 @@
+-- 레드토이 배송완료 포인트 정책 운영 반영 전 사전점검 SQL
+--
+-- 이 파일에서 실행 가능한 문장은 SELECT만 있다.
+-- CREATE/INSERT 백업 SQL은 맨 아래에 전체 주석 처리했다.
+-- Codex는 이 SQL을 운영 DB에 실행하지 않았다.
+--
+-- 실행 전 필수 작업:
+-- 1. 모든 __SET_CUTOVER_AT__을 실제 정책 전환 시각으로 치환한다.
+--    예: 2026-07-21 15:00:00
+-- 2. 운영 DB의 실제 테이블 prefix가 g5_, g5_shop_인지 확인한다.
+-- 3. __SET_CUTOVER_AT__을 치환하지 않으면 STR_TO_DATE()가 NULL이 되어
+--    과거 다날 주문 조회는 0건이 나오도록 작성했다.
+
+-- ===========================================================================
+-- 0. 운영 포인트 설정 확인
+-- ===========================================================================
+
+SELECT cf_use_point
+  FROM g5_config;
+
+SELECT de_card_point,
+       de_point_days
+  FROM g5_shop_default;
+
+-- ===========================================================================
+-- 1. 과거 PC 다날 카드 주문 중 @member / 상품구입 지급 주문
+-- ===========================================================================
+
+SELECT od.od_id,
+       od.mb_id,
+       od.od_time,
+       od.od_status,
+       od.od_pg,
+       od.od_settle_case,
+       immediate.po_id AS immediate_po_id,
+       immediate.po_datetime AS immediate_po_datetime,
+       immediate.po_point AS immediate_point,
+       SUM(ct.ct_point * ct.ct_qty) AS expected_delivery_point,
+       COUNT(*) AS cart_rows,
+       SUM(CASE WHEN ct.ct_point_use = 0 THEN 1 ELSE 0 END) AS point_use_zero_rows,
+       SUM(CASE WHEN ct.ct_point_use = 1 THEN 1 ELSE 0 END) AS point_use_one_rows
+  FROM g5_shop_order od
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card'
+ GROUP BY od.od_id,
+          od.mb_id,
+          od.od_time,
+          od.od_status,
+          od.od_pg,
+          od.od_settle_case,
+          immediate.po_id,
+          immediate.po_datetime,
+          immediate.po_point
+ ORDER BY od.od_time, od.od_id;
+
+-- 1번 요약 건수와 금액.
+SELECT COUNT(*) AS immediate_point_rows,
+       COUNT(DISTINCT od.od_id) AS immediate_order_count,
+       COALESCE(SUM(immediate.po_point), 0) AS immediate_point_sum
+  FROM g5_shop_order od
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card';
+
+-- ===========================================================================
+-- 2. 1번 주문 중 ct_point_use=0으로 남은 중복 지급 위험 행
+-- ===========================================================================
+
+SELECT od.od_id,
+       od.mb_id,
+       od.od_time,
+       od.od_status,
+       ct.ct_id,
+       ct.ct_status,
+       ct.ct_point,
+       ct.ct_qty,
+       (ct.ct_point * ct.ct_qty) AS expected_cart_point,
+       ct.ct_point_use,
+       immediate.po_id AS immediate_po_id,
+       immediate.po_datetime AS immediate_po_datetime,
+       immediate.po_point AS immediate_order_point,
+       CASE
+           WHEN od.od_status = '완료'
+            AND ct.ct_status = '완료'
+            AND ct.ct_point > 0 THEN 'Y'
+           ELSE 'N'
+       END AS delivery_point_eligible_now
+  FROM g5_shop_order od
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card'
+   AND ct.ct_point_use = 0
+ ORDER BY delivery_point_eligible_now DESC,
+          od.od_time,
+          od.od_id,
+          ct.ct_id;
+
+-- 2번 요약. risk_eligible_now_rows는 현재 상태만 보면 배송완료
+-- 포인트 지급 조건에 바로 해당하는 행이다.
+SELECT COUNT(*) AS point_use_zero_rows,
+       COUNT(DISTINCT od.od_id) AS point_use_zero_order_count,
+       COALESCE(SUM(ct.ct_point * ct.ct_qty), 0) AS expected_cart_point_sum,
+       SUM(
+           CASE
+               WHEN od.od_status = '완료'
+                AND ct.ct_status = '완료'
+                AND ct.ct_point > 0 THEN 1
+               ELSE 0
+           END
+       ) AS risk_eligible_now_rows
+  FROM g5_shop_order od
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card'
+   AND ct.ct_point_use = 0;
+
+-- ===========================================================================
+-- 3. @member와 @delivery가 모두 있어 중복 지급이 의심되는 주문
+-- ===========================================================================
+
+SELECT od.od_id,
+       od.mb_id,
+       od.od_time,
+       od.od_status,
+       ct.ct_id,
+       ct.ct_status,
+       ct.ct_point_use,
+       immediate.po_id AS immediate_po_id,
+       immediate.po_datetime AS immediate_po_datetime,
+       immediate.po_point AS immediate_order_point,
+       delivery.po_id AS delivery_po_id,
+       delivery.po_datetime AS delivery_po_datetime,
+       delivery.po_point AS delivery_cart_point,
+       delivery.po_rel_action AS delivery_relation
+  FROM g5_shop_order od
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+  JOIN g5_point delivery
+    ON delivery.mb_id = od.mb_id
+   AND delivery.po_rel_table = '@delivery'
+   AND delivery.po_rel_id = od.mb_id
+   AND delivery.po_rel_action = CONCAT(od.od_id, ',', ct.ct_id)
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card'
+ ORDER BY od.od_time, od.od_id, ct.ct_id;
+
+-- 3번 요약. 주문 수와 @delivery 이력 행 수를 구분한다.
+SELECT COUNT(*) AS duplicate_delivery_rows,
+       COUNT(DISTINCT od.od_id) AS suspected_duplicate_order_count,
+       COALESCE(SUM(delivery.po_point), 0) AS duplicate_delivery_point_sum
+  FROM g5_shop_order od
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+  JOIN g5_point delivery
+    ON delivery.mb_id = od.mb_id
+   AND delivery.po_rel_table = '@delivery'
+   AND delivery.po_rel_id = od.mb_id
+   AND delivery.po_rel_action = CONCAT(od.od_id, ',', ct.ct_id)
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card';
+
+-- ===========================================================================
+-- 4. @delivery 이력은 있지만 ct_point_use=0인 주문/장바구니 행
+-- ===========================================================================
+
+SELECT od.od_id,
+       od.mb_id,
+       od.od_time,
+       od.od_status,
+       od.od_pg,
+       od.od_settle_case,
+       ct.ct_id,
+       ct.ct_status,
+       ct.ct_point,
+       ct.ct_qty,
+       ct.ct_point_use,
+       delivery.po_id AS delivery_po_id,
+       delivery.po_datetime AS delivery_po_datetime,
+       delivery.po_point AS delivery_point,
+       delivery.po_rel_action AS delivery_relation
+  FROM g5_shop_order od
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+   AND ct.ct_point_use = 0
+  JOIN g5_point delivery
+    ON delivery.mb_id = od.mb_id
+   AND delivery.po_rel_table = '@delivery'
+   AND delivery.po_rel_id = od.mb_id
+   AND delivery.po_rel_action = CONCAT(od.od_id, ',', ct.ct_id)
+ ORDER BY od.od_time, od.od_id, ct.ct_id;
+
+-- 4번 요약.
+SELECT COUNT(*) AS delivery_history_point_use_zero_rows,
+       COUNT(DISTINCT od.od_id) AS delivery_history_point_use_zero_orders,
+       COALESCE(SUM(delivery.po_point), 0) AS delivery_history_point_sum
+  FROM g5_shop_order od
+  JOIN g5_shop_cart ct
+    ON ct.od_id = od.od_id
+   AND ct.ct_point_use = 0
+  JOIN g5_point delivery
+    ON delivery.mb_id = od.mb_id
+   AND delivery.po_rel_table = '@delivery'
+   AND delivery.po_rel_id = od.mb_id
+   AND delivery.po_rel_action = CONCAT(od.od_id, ',', ct.ct_id);
+
+-- ===========================================================================
+-- 5. UPDATE 전 백업 대상 SELECT
+-- ===========================================================================
+
+-- 아래는 후속 보정에서 ct_point_use=1 대상으로 검토할 행이다.
+-- 즉시 적립액과 주문의 장바구니 적립예정액이 일치하는 주문만 표시한다.
+SELECT ct.ct_id,
+       ct.od_id,
+       ct.ct_status,
+       ct.ct_point,
+       ct.ct_qty,
+       ct.ct_point_use,
+       od.mb_id,
+       od.od_time,
+       od.od_status,
+       immediate.po_id AS immediate_po_id,
+       immediate.po_point AS immediate_order_point,
+       expected.expected_delivery_point
+  FROM g5_shop_cart ct
+  JOIN g5_shop_order od
+    ON od.od_id = ct.od_id
+  JOIN (
+        SELECT od_id,
+               SUM(ct_point * ct_qty) AS expected_delivery_point
+          FROM g5_shop_cart
+         GROUP BY od_id
+  ) expected
+    ON expected.od_id = od.od_id
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+   AND immediate.po_point = expected.expected_delivery_point
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card'
+   AND ct.ct_point_use = 0
+ ORDER BY od.od_time, ct.od_id, ct.ct_id;
+
+-- 5번 백업 대상 요약.
+SELECT COUNT(*) AS backup_candidate_rows,
+       COUNT(DISTINCT ct.od_id) AS backup_candidate_orders
+  FROM g5_shop_cart ct
+  JOIN g5_shop_order od
+    ON od.od_id = ct.od_id
+  JOIN (
+        SELECT od_id,
+               SUM(ct_point * ct_qty) AS expected_delivery_point
+          FROM g5_shop_cart
+         GROUP BY od_id
+  ) expected
+    ON expected.od_id = od.od_id
+  JOIN g5_point immediate
+    ON immediate.mb_id = od.mb_id
+   AND immediate.po_rel_table = '@member'
+   AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+   AND immediate.po_rel_action = '상품구입'
+   AND immediate.po_point = expected.expected_delivery_point
+ CROSS JOIN (
+       SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+  ) params
+ WHERE params.cutover_at IS NOT NULL
+   AND od.od_time < params.cutover_at
+   AND od.od_pg = 'danal'
+   AND od.od_settle_case = 'card'
+   AND ct.ct_point_use = 0;
+
+-- ===========================================================================
+-- 6. 실제 UPDATE 직전에만 사용할 백업 SQL - 현재는 전체 주석 처리
+-- ===========================================================================
+
+-- 주의:
+-- 1. 아래의 __BACKUP_YYYYMMDD__를 실제 작업일로 바꾸고 중복 테이블이 없는지 확인한다.
+-- 2. __SET_CUTOVER_AT__을 위 SELECT와 동일한 전환 시각으로 바꾼다.
+-- 3. 전체 DB 백업 후 저부하 시간대에 CREATE/INSERT만 먼저 실행한다.
+-- 4. 백업 건수가 5번 SELECT 결과와 같은지 확인하기 전에 UPDATE하지 않는다.
+
+-- CREATE TABLE g5_shop_cart_point_policy_backup___BACKUP_YYYYMMDD__ (
+--     ct_id BIGINT NOT NULL,
+--     od_id BIGINT NOT NULL,
+--     ct_status VARCHAR(20) NOT NULL,
+--     ct_point INT NOT NULL,
+--     ct_qty INT NOT NULL,
+--     ct_point_use TINYINT NOT NULL,
+--     backup_at DATETIME NOT NULL,
+--     PRIMARY KEY (ct_id)
+-- );
+
+-- INSERT INTO g5_shop_cart_point_policy_backup___BACKUP_YYYYMMDD__
+--        (ct_id, od_id, ct_status, ct_point, ct_qty, ct_point_use, backup_at)
+-- SELECT ct.ct_id,
+--        ct.od_id,
+--        ct.ct_status,
+--        ct.ct_point,
+--        ct.ct_qty,
+--        ct.ct_point_use,
+--        NOW()
+--   FROM g5_shop_cart ct
+--   JOIN g5_shop_order od
+--     ON od.od_id = ct.od_id
+--   JOIN (
+--         SELECT od_id,
+--                SUM(ct_point * ct_qty) AS expected_delivery_point
+--           FROM g5_shop_cart
+--          GROUP BY od_id
+--   ) expected
+--     ON expected.od_id = od.od_id
+--   JOIN g5_point immediate
+--     ON immediate.mb_id = od.mb_id
+--    AND immediate.po_rel_table = '@member'
+--    AND immediate.po_rel_id = CAST(od.od_id AS CHAR)
+--    AND immediate.po_rel_action = '상품구입'
+--    AND immediate.po_point = expected.expected_delivery_point
+--  CROSS JOIN (
+--        SELECT STR_TO_DATE('__SET_CUTOVER_AT__', '%Y-%m-%d %H:%i:%s') AS cutover_at
+--   ) params
+--  WHERE params.cutover_at IS NOT NULL
+--    AND od.od_time < params.cutover_at
+--    AND od.od_pg = 'danal'
+--    AND od.od_settle_case = 'card'
+--    AND ct.ct_point_use = 0;
+
+-- 백업 실행 후 건수 확인용 SELECT. 테이블명 치환 후 주석을 풀어 실행한다.
+-- SELECT COUNT(*) AS backup_rows,
+--        COUNT(DISTINCT od_id) AS backup_orders
+--   FROM g5_shop_cart_point_policy_backup___BACKUP_YYYYMMDD__;

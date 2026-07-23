@@ -2,6 +2,7 @@
 $sub_menu = '400400';
 include_once('./_common.php');
 include_once('./admin.shop.lib.php');
+include_once('./redtoy_statistics.lib.php');
 include_once(G5_LIB_PATH.'/mailer.lib.php');
 
 auth_check_menu($auth, $sub_menu, "w");
@@ -44,6 +45,7 @@ $sql = " select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ";
 $od  = sql_fetch($sql);
 if(! (isset($od['od_id']) && $od['od_id']))
     alert('주문자료가 존재하지 않습니다.');
+$redtoy_statistics_before_order = $od;
 
 if ($posts['od_receipt_time']) {
     if (check_datetime($posts['od_receipt_time']) == false)
@@ -108,6 +110,15 @@ $sql = " update {$g5['g5_shop_order_table']}
                 od_status       = '$od_status'
             where od_id = '$od_id' ";
 sql_query($sql);
+
+$redtoy_statistics_after_order = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+redtoy_statistics_record_cancel_event(
+    $redtoy_statistics_before_order,
+    $redtoy_statistics_after_order,
+    '환불금액수정',
+    'admin_orderformreceiptupdate',
+    $member['mb_id']
+);
 
 // 장바구니 상태 변경
 if($cart_status) {

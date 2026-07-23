@@ -1,6 +1,7 @@
 <?php
 $sub_menu = '400400';
 include_once('./_common.php');
+include_once('./redtoy_statistics.lib.php');
 
 auth_check_menu($auth, $sub_menu, "w");
 
@@ -16,6 +17,7 @@ if(!trim($mod_memo))
 // 주문정보
 $sql = " select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ";
 $od = sql_fetch($sql);
+$redtoy_statistics_before_order = $od;
 
 if(! (isset($od['od_id']) && $od['od_id']))
     alert_close('주문정보가 존재하지 않습니다.');
@@ -37,6 +39,15 @@ if($free_mny && $free_mny > $od_misu)
 
 // PG사별 부분취소 실행
 include_once(G5_SHOP_PATH.'/'.strtolower($od['od_pg']).'/orderpartcancel.inc.php');
+
+$redtoy_statistics_after_order = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+redtoy_statistics_record_cancel_event(
+    $redtoy_statistics_before_order,
+    $redtoy_statistics_after_order,
+    '부분환불',
+    'admin_orderpartcancelupdate',
+    $member['mb_id']
+);
 
 include_once(G5_PATH.'/head.sub.php');
 ?>

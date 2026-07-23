@@ -2527,26 +2527,84 @@ function exists_inicis_shop_order($oid, $pp=array(), $od_time='', $od_ip='')
 
 //------------------------------------------------------------------------------
 // 주문포인트를 적립한다.
-// 설정일이 지난 포인트 부여되지 않은 배송완료된 장바구니 자료에 포인트 부여
-// 설정일이 0 이면 주문서 완료 설정 시점에서 포인트를 바로 부여합니다.
+// 포인트가 부여되지 않은 배송완료 주문의 장바구니 자료에 포인트 부여
 //------------------------------------------------------------------------------
-function save_order_point($ct_status="완료")
+function save_order_point($ct_status="완료", $od_id='')
 {
-    global $g5, $default;
+    global $g5, $config;
 
-    $beforedays = date("Y-m-d H:i:s", ( time() - (86400 * (int)$default['de_point_days']) ) ); // 86400초는 하루
-    $sql = " select * from {$g5['g5_shop_cart_table']} where ct_status = '$ct_status' and ct_point_use = '0' and ct_time <= '$beforedays' ";
+    // 포인트 사용 중지 상태에서는 지급 완료로 표시하지 않는다.
+    if (!$config['cf_use_point']) {
+        return 0;
+    }
+
+    // 관리자 화면과 배치가 동시에 같은 주문포인트를 지급하지 않도록 한다.
+    $lock_name = 'redtoy_save_order_point';
+    $lock = sql_fetch(" select GET_LOCK('{$lock_name}', 5) as locked ", false);
+    if (!isset($lock['locked']) || (int)$lock['locked'] !== 1) {
+        return 0;
+    }
+
+    $saved_count = 0;
+    $legacy_paid_orders = array();
+
+    $ct_status = sql_real_escape_string($ct_status);
+    $od_id = sql_real_escape_string($od_id);
+
+    $sql = " select * from {$g5['g5_shop_cart_table']} where ct_status = '$ct_status' and ct_point_use = '0' and ct_point > 0 ";
+    if ($od_id !== '') {
+        $sql .= " and od_id = '$od_id' ";
+    }
+
     $result = sql_query($sql);
     for ($i=0; $row=sql_fetch_array($result); $i++) {
         // 회원 ID 를 얻는다.
-        $od_row = sql_fetch("select od_id, mb_id from {$g5['g5_shop_order_table']} where od_id = '{$row['od_id']}' ");
-        if ($od_row['mb_id'] && $row['ct_point'] > 0) { // 회원이면서 포인트가 0보다 크다면
+        $od_row = sql_fetch("select od_id, mb_id, od_status from {$g5['g5_shop_order_table']} where od_id = '{$row['od_id']}' ");
+        if ($od_row['od_status'] === '완료' && $od_row['mb_id'] && $row['ct_point'] > 0) { // 배송완료된 회원 주문이면서 포인트가 0보다 크다면
+            $mb_id = sql_real_escape_string($od_row['mb_id']);
+
+            // 정책 전환 전 PC 다날 카드 즉시 적립 이력이 있는 주문은 과거 데이터
+            // 보정 전까지 건너뛰어 배송완료 포인트가 중복 지급되지 않게 한다.
+            if (!isset($legacy_paid_orders[$od_row['od_id']])) {
+                $legacy = sql_fetch(" select count(*) as cnt
+                                        from {$g5['point_table']}
+                                       where mb_id = '{$mb_id}'
+                                         and po_rel_table = '@member'
+                                         and po_rel_id = '{$od_row['od_id']}'
+                                         and po_rel_action = '상품구입' ");
+                $legacy_paid_orders[$od_row['od_id']] = !empty($legacy['cnt']);
+            }
+
+            if ($legacy_paid_orders[$od_row['od_id']]) {
+                continue;
+            }
+
+            // ct_point_use 값만 믿지 않고 주문번호+ct_id 관계 이력을 직접 확인한다.
+            $delivery_history = sql_fetch(" select count(*) as cnt
+                                              from {$g5['point_table']}
+                                             where mb_id = '{$mb_id}'
+                                               and po_rel_table = '@delivery'
+                                               and po_rel_id = '{$mb_id}'
+                                               and po_rel_action = '{$od_row['od_id']},{$row['ct_id']}' ");
+            if (!empty($delivery_history['cnt'])) {
+                continue;
+            }
+
             $po_point = $row['ct_point'] * $row['ct_qty'];
             $po_content = "주문번호 {$od_row['od_id']} ({$row['ct_id']}) 배송완료";
-            insert_point($od_row['mb_id'], $po_point, $po_content, "@delivery", $od_row['mb_id'], "{$od_row['od_id']},{$row['ct_id']}");
+            $point_result = insert_point($od_row['mb_id'], $po_point, $po_content, "@delivery", $od_row['mb_id'], "{$od_row['od_id']},{$row['ct_id']}");
+
+            // 신규 지급이 성공한 경우에만 지급 완료 처리한다.
+            if ($point_result === 1) {
+                sql_query("update {$g5['g5_shop_cart_table']} set ct_point_use = '1' where ct_id = '{$row['ct_id']}' and ct_point_use = '0' ");
+                $saved_count++;
+            }
         }
-        sql_query("update {$g5['g5_shop_cart_table']} set ct_point_use = '1' where ct_id = '{$row['ct_id']}' ");
     }
+
+    sql_query(" select RELEASE_LOCK('{$lock_name}') ", false);
+
+    return $saved_count;
 }
 
 

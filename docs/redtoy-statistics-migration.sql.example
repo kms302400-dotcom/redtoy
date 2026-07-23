@@ -1,0 +1,50 @@
+-- 레드토이 종합통계 취소/환불 이벤트 테이블 마이그레이션 예시
+--
+-- 적용 대상: 운영 DB가 아닌 검증 환경에서 먼저 실행하고, 실제 테이블 prefix를 확인한다.
+-- 적용 전: DB 전체 백업, SHOW CREATE TABLE/SHOW INDEX 결과 보관, 저부하 시간 확인.
+-- 애플리케이션 순서: 이 테이블 생성 -> 코드 배포 -> 취소 이벤트 기록 확인.
+-- 기존 취소 데이터는 발생일을 알 수 없어 이 테이블로 소급 이관하지 않는다.
+
+CREATE TABLE `g5_redtoy_order_cancel_event` (
+  `event_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `od_id` varchar(20) NOT NULL,
+  `mb_id` varchar(64) NOT NULL DEFAULT '',
+  `cancel_type` varchar(30) NOT NULL DEFAULT '',
+  `cancel_amount` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `refund_amount` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `order_status_before` varchar(20) NOT NULL DEFAULT '',
+  `order_status_after` varchar(20) NOT NULL DEFAULT '',
+  `source` varchar(60) NOT NULL DEFAULT '',
+  `admin_id` varchar(64) NOT NULL DEFAULT '',
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`event_id`),
+  KEY `idx_redtoy_cancel_created` (`created_at`),
+  KEY `idx_redtoy_cancel_order` (`od_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- 조회 성능 사전 확인. 아래 인덱스는 기존 인덱스와 EXPLAIN을 확인한 뒤 필요한 것만 적용한다.
+SHOW INDEX FROM `g5_shop_order`;
+SHOW INDEX FROM `g5_member`;
+EXPLAIN SELECT `od_id`, `mb_id`, `od_receipt_time`
+  FROM `g5_shop_order`
+ WHERE `od_test` = 0
+   AND `od_status` IN ('입금', '준비', '배송', '완료')
+   AND `od_receipt_time` >= '2026-07-01 00:00:00'
+   AND `od_receipt_time` < '2026-07-15 00:00:00';
+
+-- 필요 시 적용 후보. 중복 인덱스가 없는지 반드시 먼저 확인한다.
+-- ALTER TABLE `g5_shop_order`
+--   ADD INDEX `idx_redtoy_stats_receipt` (`od_test`, `od_status`, `od_receipt_time`, `od_id`),
+--   ADD INDEX `idx_redtoy_stats_member_receipt` (`mb_id`, `od_test`, `od_status`, `od_receipt_time`, `od_id`);
+-- ALTER TABLE `g5_member`
+--   ADD INDEX `idx_redtoy_stats_join` (`mb_datetime`),
+--   ADD INDEX `idx_redtoy_stats_leave` (`mb_leave_date`);
+
+-- 검증
+SELECT COUNT(*) AS event_count,
+       MIN(`created_at`) AS first_event_at,
+       MAX(`created_at`) AS last_event_at
+  FROM `g5_redtoy_order_cancel_event`;
+
+-- 롤백: 코드에서 이벤트 기록과 조회를 제거한 뒤 아래 구문을 별도 승인 후 실행한다.
+-- DROP TABLE `g5_redtoy_order_cancel_event`;

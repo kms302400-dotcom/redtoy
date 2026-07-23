@@ -2,10 +2,13 @@
 $sub_menu = '400400';
 include_once('./_common.php');
 include_once('./admin.shop.lib.php');
+include_once('./redtoy_statistics.lib.php');
 
 auth_check_menu($auth, $sub_menu, "w");
 
 check_admin_token();
+
+$redtoy_statistics_before_order = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
 
 $ct_chk_count = isset($_POST['ct_chk']) ? count($_POST['ct_chk']) : 0;
 if(!$ct_chk_count)
@@ -372,6 +375,22 @@ if($cancel_change) {
 
 $sql .= " where od_id = '$od_id' ";
 sql_query($sql);
+
+if (in_array($_POST['ct_status'], $status_cancel)) {
+    $redtoy_statistics_after_order = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+    redtoy_statistics_record_cancel_event(
+        $redtoy_statistics_before_order,
+        $redtoy_statistics_after_order,
+        $_POST['ct_status'],
+        'admin_orderformcartupdate',
+        $member['mb_id']
+    );
+}
+
+// 관리자 주문상세의 배송완료 처리도 자동 완료와 동일한 포인트 지급 흐름을 사용한다.
+if (!$cancel_change && isset($_POST['ct_status']) && $_POST['ct_status'] === '완료') {
+    save_order_point('완료', $od_id);
+}
 
 
 $qstr = "sort1=$sort1&amp;sort2=$sort2&amp;sel_field=$sel_field&amp;search=$search&amp;page=$page";
