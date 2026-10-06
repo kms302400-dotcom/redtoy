@@ -84,6 +84,8 @@ SHOW INDEX FROM g5_redtoy_telegram_queue WHERE Key_name='redtoy_event_once';
 
 ## 배포 후 설정
 
+- CLI 작업자는 웹 common.php를 불러오지 않고 DB 설정과 알림 라이브러리만 읽는다. 웹 도메인 리다이렉트·세션·방문 기록·자동 DB 최적화·extend 훅을 실행하지 않는다. 로컬 PHP 8.4/MariaDB에서 합성 토큰과 임시 DB로 `--check` 성공 및 알림 비활성 `--run`의 `Processed: 0`을 확인했다. 외부 전송 함수는 차단한 상태로 검증했다.
+
 - PHP 7.4 이상, `short_open_tag=On`(기존 테마 요구), OpenSSL AES-256-GCM, cURL, mysqli 필요. 신규 패키지를 설치하지 않았다.
 - 서버의 안전한 비밀 설정에서 32바이트 난수의 Base64 값을 `REDTOY_TELEGRAM_KEY`로 등록한다. 웹 PHP와 CLI cron에 **같은 키**를 주입한다. 키를 Git, 웹 루트, 명령행 인자, 로그에 넣지 않는다. 암호화 키 백업도 별도 보관한다. 키를 바꿀 때는 기존 토큰을 새 키로 다시 등록해야 한다.
 - 최고관리자로 `쇼핑몰관리 → 텔레그램 운영 알림` 또는 `/adm/shop_admin/redtoy_telegram.php`에 접근한다. 봇 토큰·수신 Chat ID·이벤트별 설정을 저장한다. 토큰 입력란은 항상 비어 있고 등록 여부만 표시한다.

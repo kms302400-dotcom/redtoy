@@ -5,10 +5,27 @@ if (!isset($argv[1]) || !in_array($argv[1], array('--run','--check'), true)) {
     fwrite(STDERR, "Usage: php redtoy_telegram_worker.php --check|--run\n");
     exit(1);
 }
-define('G5_IS_ADMIN', true);
-chdir(__DIR__);
-include_once __DIR__.'/../../common.php';
-require_once G5_LIB_PATH.'/redtoy_telegram.lib.php';
+// CLI must not load web redirects, sessions, visits, optimization or extend hooks.
+define('_GNUBOARD_', true);
+try {
+    require __DIR__.'/../../data/dbconfig.php';
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    $redtoy_worker_db = new mysqli(G5_MYSQL_HOST, G5_MYSQL_USER, G5_MYSQL_PASSWORD, G5_MYSQL_DB);
+    $redtoy_worker_db->set_charset('utf8mb4');
+} catch (Throwable $e) {
+    fwrite(STDERR, "Database configuration/connection unavailable\n");
+    exit(1);
+}
+function sql_query($sql, $error = true) {
+    global $redtoy_worker_db;
+    return $redtoy_worker_db->query($sql);
+}
+function sql_fetch_array($result) { return $result->fetch_assoc(); }
+function sql_real_escape_string($value) {
+    global $redtoy_worker_db;
+    return $redtoy_worker_db->real_escape_string((string)$value);
+}
+require_once __DIR__.'/../../lib/redtoy_telegram.lib.php';
 if ($argv[1] === '--check') {
     $config = redtoy_tg_config();
     if (!$config) { fwrite(STDERR, "Schema/configuration unavailable\n"); exit(1); }
