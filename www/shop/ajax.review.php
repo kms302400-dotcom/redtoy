@@ -9,7 +9,7 @@
     $visible = sql_fetch("select is_confirm, mb_id from {$g5['g5_shop_item_use_table']} where is_id='$is_id'");
     if (!$row || (!$visible['is_confirm'] && !$is_admin && (empty($member['mb_id']) || $visible['mb_id'] !== $member['mb_id']))) exit;
     $row['is_content'] = html_purifier($row['is_content']);
-    $row['review_notice'] = !empty($row['is_provided']) ? '상품 제공 리뷰 · 고객이 전달한 후기를 관리자가 대신 등록했습니다' : '';
+    $row['review_notice'] = '';
     $row['image_list'] = array();
     header('Content-Type: application/json; charset=utf-8');
     

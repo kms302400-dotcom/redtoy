@@ -236,7 +236,7 @@ try {
     verify($regular['is_name']==='실제 회원명' && $regular['is_time']===G5_TIME_YMDHIS && $regular['is_content']==='회원 수정 내용','ordinary edit preserves identity/date');
     ob_start();redtoy_review_fields($regular);$html=ob_get_clean();verify(strpos($html,'review_nickname')===false,'ordinary form hides proxy fields');
     $is_admin='super';ob_start();redtoy_review_fields($edited,true);$html=ob_get_clean();verify(strpos($html,'수정 별명')!==false && strpos($html,'2025-01-02')!==false,'admin form loads persisted fields');
-    verify(strpos(redtoy_review_notice($edited),'상품 제공 리뷰')!==false,'provided review disclosure');
+    verify(redtoy_review_notice($edited)==='', 'proxy review notice hidden');
     $member=array('mb_id'=>'operator','mb_name'=>'관리자','mb_nick'=>'운영자','mb_password'=>'fixture');
     $auth=array('400650'=>'rw');set_session('ss_admin_token','admin-fixture');
     $admin_input=array('w'=>'u','is_id'=>1,'it_id'=>'forged-item','is_subject'=>'관리자 화면 제목','is_content'=>'관리자 화면 수정 내용','review_nickname'=>'관리자 화면 별명','review_date'=>'2023-03-05','redtoy_review_token'=>redtoy_review_token(),'token'=>'admin-fixture','is_confirm'=>'1');

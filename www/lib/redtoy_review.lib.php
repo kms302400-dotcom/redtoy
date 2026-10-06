@@ -56,16 +56,15 @@ function redtoy_review_fields($review = array(), $admin_screen = false)
     $name = $provided ? $review['is_name'] : '';
     $date = $provided ? substr($review['is_time'], 0, 10) : substr(G5_TIME_YMDHIS, 0, 10);
     echo '<fieldset class="redtoy_review_fields" style="padding:12px;border:1px solid #ddd;margin:10px 0">';
-    echo '<legend>상품 제공 리뷰 대리 등록</legend>';
+    echo '<legend>관리자 리뷰 대리 등록</legend>';
     echo '<input type="hidden" name="review_provided" value="1">';
     echo '<label>고객 닉네임 <input class="frm_input" type="text" name="review_nickname" maxlength="50" required value="'.htmlspecialchars($name, ENT_QUOTES, 'UTF-8').'"></label> ';
     echo '<label>리뷰 등록일 <input class="frm_input" type="date" name="review_date" required max="'.substr(G5_TIME_YMDHIS, 0, 10).'" value="'.$date.'"></label>';
-    echo '<p>고객이 전달한 후기를 관리자가 대신 등록했습니다</p>';
     if ($admin_screen && $provided) echo '<p>실제 등록 관리자: '.htmlspecialchars($review['is_registered_by'], ENT_QUOTES, 'UTF-8').' / '.htmlspecialchars($review['is_registered_at'], ENT_QUOTES, 'UTF-8').'</p>';
     echo '</fieldset>';
 }
 
 function redtoy_review_notice($row)
 {
-    return empty($row['is_provided']) ? '' : '<p class="redtoy_review_notice"><strong>상품 제공 리뷰</strong><br>고객이 전달한 후기를 관리자가 대신 등록했습니다</p>';
+    return ''; // Display notice disabled; preserve proxy-review audit fields.
 }
