@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!get_session('redtoy_tg_test_nonce') || !hash_equals(get_session('redtoy_tg_test_nonce'), $nonce)) alert('테스트 화면을 다시 열어 주세요.');
         if (!redtoy_tg_enqueue('test', $nonce, '[레드토이] 관리자 요청 테스트 메시지', true)) alert('큐 등록 실패: 사용 설정과 토큰, Chat ID를 확인해 주세요.');
         set_session('redtoy_tg_test_nonce', '');
-        $notice = '테스트 메시지를 큐에 등록했습니다. CLI 작업자가 실제 채널로 전송합니다.';
+        $notice = '테스트 메시지를 큐에 등록했습니다. 별도 작업자가 실제 채널로 즉시 전송을 시도합니다.';
     } elseif ($action === 'retry') {
         $id = isset($_POST['queue_id']) && is_scalar($_POST['queue_id']) ? (int)$_POST['queue_id'] : 0;
         $row = redtoy_tg_row("select status from $table where id=$id");
@@ -46,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($row['status'] === 'uncertain' && (!isset($_POST['confirm_duplicate']) || $_POST['confirm_duplicate'] !== '1')) alert('전송 여부 불명 항목은 채널 확인 후 중복 가능성에 동의해야 합니다.');
         $actor = sql_real_escape_string($member['mb_id']);
         if (!redtoy_tg_query("update $table set status='pending',attempts=0,available_at=NOW(),updated_at=NOW(),retry_by='$actor' where id=$id and status in ('failed','uncertain')")) alert('재시도 등록에 실패했습니다.');
+        redtoy_tg_schedule();
         $notice = '재시도 큐에 등록했습니다.';
     } else { alert('잘못된 요청입니다.'); }
     // POST/redirect/GET: refresh cannot repeat saves or test messages.
@@ -62,7 +63,7 @@ include_once G5_ADMIN_PATH.'/admin.head.php';
 function redtoy_tg_h($value) { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
 ?>
 <div class="local_desc01 local_desc">
-    <p>최고관리자 전용입니다. 저장 후 CLI 작업자(cron)를 실행해야 전송됩니다. 웹 요청에서는 전송하지 않습니다.</p>
+    <p>최고관리자 전용입니다. 이벤트 저장 후 별도 작업자가 즉시 전송을 시도합니다. 실패·대기 알림은 정기 작업으로 다시 확인합니다.</p>
     <p>봇 토큰은 암호화하여 저장하며 조회 화면에 반환하지 않습니다. 토큰 입력란이 비어 있으면 기존 값을 유지합니다.</p>
     <p>실패는 최대 5회 자동 재시도합니다. 전송 여부 불명(uncertain)은 채널 확인 후 수동으로 재시도하세요.</p>
     <p>대기 메시지는 등록 당시 Chat ID로 전송됩니다. 알림 또는 해당 이벤트를 끄면 대기 전송도 멈춥니다.</p>

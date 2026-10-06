@@ -65,6 +65,35 @@ function redtoy_tg_paid($order)
         && (float)$order['od_misu'] <= 0;
 }
 
+// Launch a detached CLI worker, never an HTTP request to Telegram from checkout.
+function redtoy_tg_dispatch()
+{
+    try {
+        if (!function_exists('proc_open') || DIRECTORY_SEPARATOR !== '/') throw new RuntimeException('launcher unavailable');
+        redtoy_tg_key(); // Fail closed if Apache has no usable encryption key.
+        $php = getenv('REDTOY_TELEGRAM_PHP') ?: '/usr/bin/php';
+        $worker = dirname(__DIR__).'/adm/shop_admin/redtoy_telegram_worker.php';
+        if (!is_executable($php) || !is_file($worker)) throw new RuntimeException('worker unavailable');
+        $command = escapeshellarg($php).' -d short_open_tag=1 '.escapeshellarg($worker).' --run </dev/null >/dev/null 2>&1 &';
+        $process = proc_open(array('/bin/sh', '-c', $command), array(
+            0=>array('file','/dev/null','r'), 1=>array('file','/dev/null','w'), 2=>array('file','/dev/null','w')
+        ), $pipes, null, array('REDTOY_TELEGRAM_KEY'=>(string)getenv('REDTOY_TELEGRAM_KEY'), 'PATH'=>'/usr/bin:/bin'));
+        if (!is_resource($process) || proc_close($process) !== 0) throw new RuntimeException('launch failed');
+        return true;
+    } catch (Throwable $e) {
+        error_log('redtoy_telegram: background_launch_failed');
+        return false; // Persisted queue remains available to the retry scheduler.
+    }
+}
+
+function redtoy_tg_schedule()
+{
+    static $scheduled = false;
+    if ($scheduled || PHP_SAPI === 'cli') return;
+    $scheduled = true;
+    register_shutdown_function('redtoy_tg_dispatch');
+}
+
 function redtoy_tg_enqueue($event, $id, $message, $test = false)
 {
     try {
@@ -84,6 +113,7 @@ function redtoy_tg_enqueue($event, $id, $message, $test = false)
             values ('$key','$event','$id','$message','$chat',NOW(),NOW(),NOW())
             on duplicate key update event_key=event_key");
         if (!$result) error_log('redtoy_telegram: queue_write_failed');
+        else redtoy_tg_schedule();
         return (bool)$result;
     } catch (Throwable $e) {
         error_log('redtoy_telegram: enqueue_failed');
