@@ -9,17 +9,30 @@ define('G5_LIB_PATH', G5_PATH.'/lib');
 define('G5_ADMIN_URL', 'https://shop.invalid/adm');
 define('G5_BBS_URL', 'https://shop.invalid/bbs');
 define('G5_SHOP_URL', 'https://shop.invalid/shop');
-$db = new PDO('sqlite::memory:');
+// Optional real MariaDB mode accepts only a dedicated temporary local socket.
+$test_socket = getenv('REDTOY_TEST_SOCKET');
+$mysql_mode = (bool)$test_socket;
+if ($mysql_mode) {
+    if (!preg_match('#^/private/tmp/redtoy-local-db\.[A-Za-z0-9]+/db\.sock$#D', $test_socket)) throw new RuntimeException('Only an isolated test socket is allowed');
+    $db = new PDO('mysql:unix_socket='.$test_socket.';charset=utf8mb4', 'root', '');
+    $test_database = 'redtoy_feature_test_'.bin2hex(random_bytes(8));
+    $db->exec('CREATE DATABASE `'.$test_database.'` CHARACTER SET utf8mb4');
+    $db->exec('USE `'.$test_database.'`');
+    register_shutdown_function(function() use ($db, $test_database) { $db->exec('DROP DATABASE `'.$test_database.'`'); });
+} else {
+    $db = new PDO('sqlite::memory:');
+}
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $g5 = array('g5_shop_order_table'=>'orders', 'g5_shop_cart_table'=>'cart', 'qa_content_table'=>'qa', 'g5_shop_item_use_table'=>'reviews', 'g5_shop_item_use_image_table'=>'images', 'auth_table'=>'auth');
 $sessions = array();
 $fail_queue = false;
 $checks = 0;
 function verify($value, $label) { global $checks; $checks++; if (!$value) throw new RuntimeException('FAIL: '.$label); }
-function sql_real_escape_string($s) { return str_replace("'", "''", (string)$s); }
+function sql_real_escape_string($s) { global $db; return substr($db->quote((string)$s), 1, -1); }
 function sql_query($sql, $error = true) {
-    global $db, $fail_queue;
+    global $db, $fail_queue, $mysql_mode;
     if ($fail_queue && strpos($sql, 'redtoy_telegram') !== false) throw new RuntimeException('simulated storage outage');
+    if ($mysql_mode) return $db->query($sql);
     if (strpos($sql, 'GET_LOCK') !== false) return $db->query('select 1 as acquired');
     if (strpos($sql, 'RELEASE_LOCK') !== false) return $db->query('select 1');
     $sql = preg_replace('/DATE_ADD\(NOW\(\), INTERVAL (\d+) SECOND\)/i', "datetime('now', '+$1 seconds')", $sql);
@@ -57,14 +70,36 @@ function check_admin_token() { if (empty($_POST['token']) || $_POST['token'] !==
 function goto_url($url) { throw new ReviewAlert('redirect'); }
 require G5_PATH.'/lib/redtoy_review.lib.php';
 require G5_PATH.'/lib/redtoy_telegram.lib.php';
-$db->exec("create table auth(mb_id text, au_menu text, au_auth text);
+$fixture_schema = "create table auth(mb_id text, au_menu text, au_auth text);
 create table orders(od_id text primary key,od_status text,od_misu int,od_time text,od_receipt_time text,od_cart_price int,od_send_cost int,od_send_cost2 int,od_cart_coupon int,od_coupon int,od_send_coupon int,od_receipt_point int,od_receipt_price int,od_settle_case text);
 create table cart(ct_id int,od_id text,mb_id text,it_id text,it_name text,ct_select int,ct_status text);
 create table qa(qa_id int,qa_parent int,qa_type int,qa_subject text,qa_datetime text);
 create table g5_redtoy_telegram_config(id int primary key,enabled int,token_cipher text,chat_id text,order_created int,order_paid int,qa_created int,qa_answered int,updated_at text);
 create table g5_redtoy_telegram_queue(id integer primary key autoincrement,event_key text unique,event_type text,object_id text,message text,chat_id text,status text default 'pending',attempts int default 0,available_at text,created_at text,updated_at text,sent_at text,http_code int default 0,error_code text default '',message_id text default '',retry_by text default '');
 create table reviews(is_id integer primary key autoincrement,it_id text,mb_id text,ct_id int,is_score int,is_name text,is_password text,is_subject text,is_content text,is_time text,is_ip text,is_confirm int default 0,is_provided int default 0,is_registered_by text default '',is_registered_at text,is_reply_subject text default '',is_reply_content text default '',is_reply_name text default '');
-create table images(is_id int,bf_file text);");
+create table images(is_id int,bf_file text);";
+if ($mysql_mode) {
+    // Adapt only the legacy fixture schema; application SQL runs unchanged.
+    $fixture_schema = str_replace('od_id text primary key', 'od_id varchar(64) primary key', $fixture_schema);
+    $fixture_schema = str_replace('integer primary key autoincrement', 'integer primary key auto_increment', $fixture_schema);
+    $fixture_schema = preg_replace('/create table g5_redtoy_telegram_(config|queue)\(.*?;\n/s', '', $fixture_schema);
+    $fixture_schema = str_replace("is_provided int default 0,is_registered_by text default '',is_registered_at text,", '', $fixture_schema);
+    $fixture_schema = str_replace('it_id text', 'it_id varchar(20)', $fixture_schema);
+    $fixture_schema = str_replace('is_time text', 'is_time datetime', $fixture_schema);
+    $db->exec($fixture_schema);
+    $db->exec("insert into reviews(is_id,it_id,is_name,is_content,is_time,is_confirm) values(900,'item1','기존 고객','기존 후기','2020-01-02 03:04:05',1)");
+    $migration = file_get_contents(dirname(__DIR__).'/docs/redtoy-review-telegram-migration.sql.example');
+    $db->exec(str_replace('g5_shop_item_use', 'reviews', $migration));
+    $legacy = sql_fetch('select * from reviews where is_id=900');
+    verify($legacy['is_name']==='기존 고객' && $legacy['is_content']==='기존 후기' && $legacy['is_time']==='2020-01-02 03:04:05', 'migration preserves existing review');
+    verify($legacy['is_provided']==0 && $legacy['is_registered_by']==='' && $legacy['is_registered_at']===null, 'migration defaults keep existing review ordinary');
+    verify(sql_fetch('select enabled from g5_redtoy_telegram_config where id=1')['enabled']==0, 'migration leaves notifications disabled');
+    $db->exec('delete from reviews');
+    $db->exec('alter table reviews auto_increment=1');
+    $db->exec('delete from g5_redtoy_telegram_config');
+} else {
+    $db->exec($fixture_schema);
+}
 // Ephemeral synthetic credentials are generated at runtime and never printed.
 putenv('REDTOY_TELEGRAM_KEY='.base64_encode(random_bytes(32)));
 $synthetic = bin2hex(random_bytes(20));
@@ -96,6 +131,15 @@ verify(strpos(implode('\n',$messages),'shop.invalid/adm/shop_admin/orderform.php
 verify(strpos(implode('\n',$messages),'shop.invalid/bbs/qaview.php?qa_id=10')!==false,'QA detail link');
 verify(strpos(implode('\n',$messages),'12,000원')!==false,'payment amount');
 verify(strpos(redtoy_tg_clean('연락 010-1234-5678 test@example.invalid'),'010-1234')===false,'title phone redaction');
+if ($mysql_mode) {
+    $other = new PDO('mysql:unix_socket='.$test_socket.';dbname='.$test_database.';charset=utf8mb4', 'root', '');
+    $lockname = 'redtoy_tg_'.substr(hash('sha256', G5_TABLE_PREFIX), 0, 32);
+    verify($other->query("select GET_LOCK('$lockname',0)")->fetchColumn()==1, 'independent worker acquires real database mutex');
+    $blocked_calls=0;
+    verify(redtoy_tg_worker(10, function() use (&$blocked_calls) { $blocked_calls++; })===0 && $blocked_calls===0, 'concurrent worker cannot deliver while mutex held');
+    verify($other->query("select RELEASE_LOCK('$lockname')")->fetchColumn()==1, 'independent worker releases mutex');
+    $other=null;
+}
 $transport_calls=0;
 $transport=function($token,$chat,$message) use (&$transport_calls,$synthetic) { $transport_calls++; verify($token===$synthetic,'worker decrypt only'); return array('status'=>'sent','code'=>'','http'=>200,'delay'=>0,'message_id'=>(string)$transport_calls); };
 verify(redtoy_tg_worker(10,$transport)===4,'worker sends four queued events');
@@ -218,4 +262,5 @@ foreach (array('shop/orderformupdate.php','mobile/shop/orderformupdate.php','sho
 foreach (array('shop/settle_kcp_common.php','shop/settle_lg_common.php','shop/settle_inicis_common.php','shop/personalpayformupdate.php','mobile/shop/personalpayformupdate.php','adm/shop_admin/orderformreceiptupdate.php','adm/shop_admin/orderlistupdate.php','adm/shop_admin/inorderformupdate.php') as $path) {
     verify(strpos(file_get_contents(G5_PATH.'/'.$path),'redtoy_tg_order(')!==false,'payment/admin path wired: '.$path);
 }
-echo "PASS: $checks offline assertions; no production DB or network used\n";
+$backend = $mysql_mode ? 'isolated MariaDB' : 'SQLite';
+echo "PASS: $checks assertions ($backend); no production DB or external API used\n";

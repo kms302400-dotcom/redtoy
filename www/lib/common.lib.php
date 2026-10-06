@@ -31,7 +31,7 @@ function file_upload2($tmp_name, $pName, $size, $bfilename, $rfilename = "", $fi
 
 	if ($size > 0)
 	{
-		$ext = strtolower(array_pop(explode(".", $imgfile_name)));
+		$ext = strtolower(pathinfo($imgfile_name, PATHINFO_EXTENSION));
 
 		if (in_array($ext, $filterExt)) {
 			if ($rfilename) {
