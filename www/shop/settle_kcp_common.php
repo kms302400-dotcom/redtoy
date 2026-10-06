@@ -209,6 +209,7 @@ if(!$default['de_card_test']) {
                             set ct_status = '입금'
                             where od_id = '$od_id' ";
                 sql_query($sql, FALSE);
+                if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id);
             }
         }
     }

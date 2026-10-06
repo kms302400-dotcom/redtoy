@@ -57,6 +57,7 @@ for ($i=0; $i<$count_post_chk; $i++)
             if ($od['od_settle_case'] != '무통장') continue 2;
             change_status($od_id, '주문', '입금');
             order_update_receipt($od_id);
+            if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id);
 
             // SMS
             if($config['cf_sms_use'] == 'icode' && $send_sms && $default['de_sms_use4']) {

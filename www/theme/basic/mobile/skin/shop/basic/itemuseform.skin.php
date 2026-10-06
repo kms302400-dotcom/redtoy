@@ -10,6 +10,7 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">',
     <h1 id="win_title">사용후기 쓰기</h1>
 
     <form name="fitemuse" method="post" action="<?php echo G5_SHOP_URL;?>/itemuseformupdate.php" onsubmit="return fitemuse_submit(this);" autocomplete="off">
+    <input type="hidden" name="redtoy_review_token" value="<?php echo redtoy_review_token(); ?>">
     <input type="hidden" name="w" value="<?php echo $w; ?>">
     <input type="hidden" name="it_id" value="<?php echo $it_id; ?>">
     <input type="hidden" name="is_id" value="<?php echo $is_id; ?>">

@@ -142,6 +142,7 @@ if ( $LGD_HASHDATA2 == $LGD_HASHDATA ) { //해쉬값 검증이 성공이면
                                     set ct_status = '입금'
                                     where od_id = '$od_id' ";
                         sql_query($sql, FALSE);
+                        if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id);
                     }
                 }
             }

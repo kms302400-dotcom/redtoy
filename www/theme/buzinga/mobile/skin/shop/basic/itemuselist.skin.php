@@ -137,9 +137,10 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">',
             </div>
         </section>
 
+        <?php echo redtoy_review_notice($row); ?>
         <div class="sps_dl">
             <p class="sps_star"><img src="<?php echo G5_SHOP_URL; ?>/img/s_star<?php echo $star; ?>.png" alt="별<?php echo $star; ?>개" width="80"></p>
-            <p><?php echo $nickname['mb_nick']; ?></p>
+            <p><?php echo get_text(!empty($row['is_provided']) ? $row['is_name'] : $nickname['mb_nick']); ?></p>
             <p><?php echo substr($row['is_time'],2,8); ?></p>
         </div>
 
@@ -236,11 +237,12 @@ function reviewDetailOpen(is_id, bf_file){
             , data : { "is_id" : is_id }
         }).done((res) => {
             try {
-                var json = JSON.parse(res)
+                var json = typeof res === "string" ? JSON.parse(res) : res
                 
                 $("#detail_score_image").attr("src", "/shop/img/s_star"+json.is_score+".png");
                 $("#detail_score").html(json.is_score);
-                $("#detail_username").html(json.is_name);
+                $("#detail_username").text(json.is_name);
+                $("#detail_review_notice").text(json.review_notice || "");
                 $("#detail_date").html(json.is_time.split(' ')[0]);
                 $("#detail_content").html(json.is_content);
                 $("#detail_image_list").html("");

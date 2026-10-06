@@ -50,6 +50,7 @@ $qstr .= ($qstr ? '&amp;' : '').'sca='.$sca;
 <input type="hidden" name="page" value="<?php echo $page; ?>">
 
 
+<?php redtoy_review_fields($is, true); ?>
 <div class="tbl_frm01 tbl_wrap">
     <table>
     <caption><?php echo $g5['title']; ?> 수정</caption>

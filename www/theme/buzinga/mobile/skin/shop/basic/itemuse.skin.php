@@ -28,7 +28,7 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">',
     </div>
     <div class="rating_box">
         <div class="rating_score">
-            <p>구매자 총 별점</p>
+            <p>고객 리뷰 총 별점</p>
             <div class="rating_num"><?php echo $item_use_score; ?></div>
             <div class="rating_star">
                 <img src="/shop/img/s_star<?php echo get_star($item_use_score < 1 ? 1 : $item_use_score); ?>.png" alt="고객평점 " class="sit_star" width="100">
@@ -141,14 +141,15 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">',
                         <img src="<?php echo G5_SHOP_URL; ?>/img/s_star<?php echo $is_star; ?>.png" alt="별<?php echo $is_star; ?>개">
                         <span><b><?php echo $is_star; ?></b>&#8201;/&#8201;5</span>
                     </div>
+                    <?php echo redtoy_review_notice($row); ?>
                     <dl class="sit_use_dl">
                         <dt>작성자</dt>
-                        <dd class="nick"><?php echo $is_nick ?></dd>
+                        <dd class="nick"><?php echo !empty($row['is_provided']) ? $is_name : $is_nick; ?></dd>
                         <dt>작성일</dt>
                         <dd><?php echo $is_time; ?></dd>
                     </dl>
                 </div>
-                <?php if ($is_admin || $row['mb_id'] == $member['mb_id']) { ?>
+                <?php if (redtoy_review_admin() || $row['mb_id'] == $member['mb_id']) { ?>
                     <div class="sit_use_cmd">
                         <a href="<?php echo $itemuse_form."&amp;is_id={$row['is_id']}&amp;w=u"; ?>" class="itemuse_form btn01" onclick="return false;">수정</a>
                         <a href="<?php echo $itemuse_formupdate."&amp;is_id={$row['is_id']}&amp;w=d&amp;hash={$hash}"; ?>" class="itemuse_delete btn01">삭제</a>

@@ -5,9 +5,11 @@ if (!defined('_GNUBOARD_')) exit; // 개별 페이지 접근 불가
 $is_id = isset($_REQUEST["is_id"]) ? safe_replace_regex($_REQUEST["is_id"], "number") : "";
 if (!$is_id || !$it_id) exit;
 
-if (!$is_admin) $where = " AND mb_id = '" . $member["mb_id"] . "' ";
+$where = '';
+if (!redtoy_review_admin()) $where = " AND mb_id = '" . $member["mb_id"] . "' ";
 $sql = " SELECT * FROM {$g5['g5_shop_item_use_table']} WHERE is_id = '" . $is_id . "' $where";
 $row = sql_fetch($sql);
+if (!$row || (!redtoy_review_admin() && !empty($row['is_provided']))) exit;
 
 $sql = " SELECT * FROM {$g5['g5_shop_item_use_image_table']} WHERE is_id = '" . $is_id . "' order by is_file_idx ";
 $res = sql_query($sql);
@@ -21,6 +23,8 @@ $it = get_shop_item($row["it_id"]);
     <h1 id="win_title">리뷰 수정</h1>
 
     <form name="fitemuseedit" method="post" enctype="multipart/form-data" action="<?php echo G5_SHOP_URL;?>/itemuseformupdate.php" onsubmit="return fitemuse_submit2(this);" autocomplete="off">
+    <?php redtoy_review_fields($row); ?>
+    <input type="hidden" name="it_id" value="<?php echo get_text($row['it_id']); ?>">
     <input type="hidden" name="w" value="u">
     <input type="hidden" name="is_id" value="<?php echo $is_id; ?>">
     <input type="hidden" name="is_subject" value="<?=$it["it_name"]?>" />

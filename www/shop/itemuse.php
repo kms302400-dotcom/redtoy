@@ -76,7 +76,7 @@ $total_page  = ceil($total_count / $rows); // 전체 페이지 계산
 if ($page < 1) $page = 1; // 페이지가 없으면 첫 페이지 (1 페이지)
 $from_record = ($page - 1) * $rows; // 시작 레코드 구함
 
-$sql = "select * $sql_common order by is_id desc limit $from_record, $rows ";
+$sql = "select * $sql_common order by is_time desc, is_id desc limit $from_record, $rows ";
 $result = sql_query($sql);
 
 $itemuse_skin = G5_SHOP_SKIN_PATH.'/itemuse.skin.php';

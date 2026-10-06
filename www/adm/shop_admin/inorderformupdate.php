@@ -381,6 +381,8 @@ $sql = " update {$g5['g5_shop_order_table']}
 sql_query($sql);
 
 // 임시 주문정보 삭제
+if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id, true);
+
 $sql = " delete from {$g5['g5_shop_order_data_table']} where od_id = '$od_id' and dt_pg = '$od_pg' ";
 sql_query($sql, true);
 

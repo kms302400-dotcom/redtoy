@@ -1,6 +1,10 @@
 <?php
 if (!defined("_GNUBOARD_")) exit; // 개별 페이지 접근 불가
 
+// All order creation paths reach this include after saving the order and cart.
+// Queue before mail transport, even when customer/admin email delivery is disabled.
+if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id, true);
+
 unset($list);
 
 $ttotal_price = 0;

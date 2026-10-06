@@ -224,6 +224,7 @@ if($pp_receipt_price > 0 && $pp['pp_id'] && $pp['od_id']) {
                     set ct_status = '입금'
                     where od_id = '{$pp['od_id']}' ";
         sql_query($sql, FALSE);
+        if (function_exists('redtoy_tg_order')) redtoy_tg_order($pp['od_id']);
     }
 }
 

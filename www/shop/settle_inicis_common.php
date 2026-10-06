@@ -116,6 +116,7 @@ if( $PG_IP == "203.238.37.3" || $PG_IP == "203.238.37.15" || $PG_IP == "203.238.
                                 set ct_status = '입금'
                                 where od_id = '$od_id' ";
                     sql_query($sql, FALSE);
+                    if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id);
                 }
             }
         }

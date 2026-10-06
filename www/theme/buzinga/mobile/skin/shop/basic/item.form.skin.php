@@ -987,11 +987,12 @@ add_javascript('<script src="'.G5_JS_URL.'/jquery.bxslider.js"></script>', 10);
             , data : { "is_id" : is_id }
         }).done((res) => {
             try {
-                var json = JSON.parse(res)
+                var json = typeof res === "string" ? JSON.parse(res) : res
                 
                 $("#detail_score_image").attr("src", "/shop/img/s_star"+json.is_score+".png");
                 $("#detail_score").html(json.is_score);
-                $("#detail_username").html(json.is_name);
+                $("#detail_username").text(json.is_name);
+                $("#detail_review_notice").text(json.review_notice || "");
                 $("#detail_date").html(json.is_time.split(' ')[0]);
                 $("#detail_content").html(json.is_content);
                 $("#detail_image_list").html("");

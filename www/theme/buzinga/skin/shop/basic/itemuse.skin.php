@@ -13,7 +13,7 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_SHOP_SKIN_URL.'/style.css">', 
 
     <div class="sit_use_top">
         <?php if ($star_score) { ?>
-        <h4>구매고객 총평점 <span>(총 <strong><?php echo $total_count; ?></strong> 건 상품평 기준)</span></h4>
+        <h4>고객 리뷰 총평점 <span>(총 <strong><?php echo $total_count; ?></strong> 건 상품평 기준)</span></h4>
         <img src="<?php echo G5_SHOP_URL; ?>/img/s_star<?php echo $star_score?>.png" alt="" class="sit_star">
         <?php } ?>
         <div id="sit_use_wbtn">
@@ -53,14 +53,15 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_SHOP_SKIN_URL.'/style.css">', 
                 <dt>작성자/작성일</dt>
                 <dd><?php echo $is_name; ?><span class="st_bg"></span><i class="fa fa-clock-o" aria-hidden="true"></i> <?php echo $is_time; ?></dd>
             </dl>
-			<button type="button" class="sit_use_li_title">내용보기 <i class="fa fa-caret-down" aria-hidden="true"></i></button>
+			<?php echo redtoy_review_notice($row); ?>
+            <button type="button" class="sit_use_li_title">내용보기 <i class="fa fa-caret-down" aria-hidden="true"></i></button>
 
             <div id="sit_use_con_<?php echo $i; ?>" class="sit_use_con">
                 <div class="sit_use_p">
-                    <?php echo $is_content; // 사용후기 내용 ?> 
+                    <?php echo $is_content; // 사용후기 내용 ?>
                 </div>
 
-                <?php if ($is_admin || $row['mb_id'] == $member['mb_id']) { ?>
+                <?php if (redtoy_review_admin() || $row['mb_id'] == $member['mb_id']) { ?>
                 <div class="sit_use_cmd">
                     <a href="<?php echo $itemuse_form."&amp;is_id={$row['is_id']}&amp;w=u"; ?>" class="itemuse_form btn01" onclick="return false;">수정</a>
                     <a href="<?php echo $itemuse_formupdate."&amp;is_id={$row['is_id']}&amp;w=d&amp;hash={$hash}"; ?>" class="itemuse_delete btn01">삭제</a>

@@ -20,7 +20,7 @@ $total_page  = ceil($total_count / $rows); // 전체 페이지 계산
 if ($page < 1) $page = 1; // 페이지가 없으면 첫 페이지 (1 페이지)
 $from_record = ($page - 1) * $rows; // 시작 레코드 구함
 
-$sql = "select a.*, b.mb_nick $sql_common order by a.is_id desc limit $from_record, $rows ";
+$sql = "select a.*, b.mb_nick $sql_common order by a.is_time desc, a.is_id desc limit $from_record, $rows ";
 $result = sql_query($sql);
 // echo $sql;
 
@@ -33,7 +33,7 @@ $sql_img = "
 		inner join redtoy.g5_shop_item_use_image as b on a.is_id = b.is_id
 	where 
 		a.it_id = '{$it_id}' and a.is_confirm = '1'
-	order by a.is_id desc, b.is_file_idx
+	order by a.is_time desc, a.is_id desc, b.is_file_idx
 	;
 ";
 $result_img = sql_query($sql_img);

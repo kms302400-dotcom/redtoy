@@ -62,6 +62,7 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_SHOP_SKIN_URL.'/style.css">', 
             <span><img src="<?php echo G5_URL; ?>/shop/img/s_star<?php echo $star; ?>.png" alt="별<?php echo $star; ?>개" width="80"></span>
                 
             <span class="sps_pd_name"><?php echo get_text($row2['it_name']); ?></span>
+            <?php echo redtoy_review_notice($row); ?>
             <span class="sps_rv_tit"><?php echo get_text($row['is_subject']); ?></span>
             <span class="sps_rv_thum"><?php echo get_itemuse_thumb($row['is_content'], 60, 60); ?></span>
 
@@ -96,6 +97,7 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_SHOP_SKIN_URL.'/style.css">', 
 	            			</div>
 	            			
 	            			<div id="sps_con_<?php echo $i; ?>" class="review_bt_cnt">
+				                <?php echo redtoy_review_notice($row); ?>
 				                <?php echo $is_content; // 사용후기 내용 ?>
 				                <?php
 				                if( !empty($row['is_reply_subject']) ){     //사용후기 답변이 있다면

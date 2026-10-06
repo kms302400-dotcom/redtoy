@@ -28,10 +28,10 @@ if ($stx) {
 }
 
 if (!$sst) {
-    $sst  = "a.is_id";
+    $sst  = "a.is_time";
     $sod = "desc";
 }
-$sql_order = " order by $sst $sod ";
+$sql_order = " order by $sst $sod, a.is_id desc ";
 
 $sql = " select count(*) as cnt
          $sql_common

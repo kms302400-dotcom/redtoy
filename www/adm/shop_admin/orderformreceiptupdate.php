@@ -168,6 +168,8 @@ if($info['od_misu'] == 0 && $od_status == '배송') {
 }
 
 
+if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id);
+
 // 메일발송
 define("_ORDERMAIL_", true);
 include "./ordermail.inc.php";

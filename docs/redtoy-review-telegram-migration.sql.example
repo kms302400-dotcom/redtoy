@@ -1,0 +1,41 @@
+-- Apply manually to the selected staging DB first. Replace g5_ if the prefix differs.
+-- This is an additive migration, NOT an application-request schema installer.
+ALTER TABLE g5_shop_item_use
+  ADD COLUMN is_provided TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN is_registered_by VARCHAR(20) NOT NULL DEFAULT '',
+  ADD COLUMN is_registered_at DATETIME NULL,
+  ADD INDEX redtoy_review_date (it_id, is_confirm, is_time, is_id);
+
+CREATE TABLE g5_redtoy_telegram_config (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  enabled TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  token_cipher TEXT NOT NULL,
+  chat_id VARCHAR(100) NOT NULL DEFAULT '',
+  order_created TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  order_paid TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  qa_created TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  qa_answered TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO g5_redtoy_telegram_config (id, token_cipher, updated_at) VALUES (1, '', NOW());
+
+CREATE TABLE g5_redtoy_telegram_queue (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  event_key VARCHAR(128) NOT NULL,
+  event_type VARCHAR(32) NOT NULL,
+  object_id VARCHAR(64) NOT NULL,
+  message TEXT NOT NULL,
+  chat_id VARCHAR(100) NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending',
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  available_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  sent_at DATETIME NULL,
+  http_code SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  error_code VARCHAR(48) NOT NULL DEFAULT '',
+  message_id VARCHAR(32) NOT NULL DEFAULT '',
+  retry_by VARCHAR(20) NOT NULL DEFAULT '',
+  UNIQUE KEY redtoy_event_once (event_key),
+  KEY redtoy_worker (status, available_at, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

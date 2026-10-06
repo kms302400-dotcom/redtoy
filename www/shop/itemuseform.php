@@ -27,7 +27,7 @@ if ($w == "") {
     $is_score = 5;
 
     // 사용후기 작성 설정에 따른 체크
-    check_itemuse_write($it_id, $member['mb_id']);
+    if (!redtoy_review_admin()) check_itemuse_write($it_id, $member['mb_id']);
 } else if ($w == "u") {
     $use = sql_fetch(" select * from {$g5['g5_shop_item_use_table']} where is_id = '$is_id' ");
     if (!$use) {
@@ -37,7 +37,7 @@ if ($w == "") {
     $it_id    = $use['it_id'];
     $is_score = $use['is_score'];
 
-    if (!$is_admin && $use['mb_id'] != $member['mb_id']) {
+    if (!redtoy_review_admin() && ($use['mb_id'] != $member['mb_id'] || !empty($use['is_provided']))) {
         alert_close("자신의 사용후기만 수정이 가능합니다.");
     }
 }

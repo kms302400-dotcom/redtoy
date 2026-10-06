@@ -29,7 +29,7 @@ for ($i=0; $i<count($_POST['chk']); $i++)
 				$sql = " select * from {$g5['g5_shop_item_use_table']} where is_id = '{$_POST['is_id'][$k]}'  ";
 				$use1 = sql_fetch($sql);
 					
-				if($use1[is_confirm] == 0 && $_POST[is_confirm][$k] == 1){			//노출확인 아니오 에서 예로 변경시
+				if(empty($use1['is_provided']) && $use1['is_confirm'] == 0 && $_POST['is_confirm'][$k] == 1){			//노출확인 아니오 에서 예로 변경시
 					$itit = sql_fetch(" select it_name from g5_shop_item where it_id = '$use1[it_id]' ");	// 상품조회
 					$point = $config['cf_6'];				// 일반리뷰 포인트
 					$point_img = $config['cf_5'];		// 포토리뷰 포인트

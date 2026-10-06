@@ -24,6 +24,7 @@ add_stylesheet('<link rel="stylesheet" href="'.G5_MSHOP_SKIN_URL.'/style.css">',
                         </div>
                         <dl class="sit_use_dl">
                             <dt>작성자</dt>
+                            <dd id="detail_review_notice"></dd>
                             <dd class="nick" id="detail_username">작성자</dd>
                             <dt>작성일</dt>
                             <dd id="detail_date">25-03-10</dd>
