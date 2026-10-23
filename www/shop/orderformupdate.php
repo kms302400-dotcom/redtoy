@@ -885,6 +885,10 @@ if($default['de_tax_flag_use']) {
 }
 
 if ($default['de_pg_service'] == "danal") {
+    // The callback restores POST after common.php extracted request variables.
+    // Persist the server-calculated shipping amounts validated above.
+    $od_send_cost     = (int) $send_cost;
+    $od_send_cost2    = (int) $send_cost2;
     $od_email         = get_email_address($data["od_email"]);
     $od_name          = clean_xss_tags($data["od_name"]);
     $od_tel           = clean_xss_tags($data["od_tel"]);

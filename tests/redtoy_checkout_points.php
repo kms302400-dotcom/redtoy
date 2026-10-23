@@ -80,4 +80,49 @@ foreach(array('shop/danal/orderform.1.php','mobile/shop/danal/orderform.1.php') 
 foreach(array('shop/danal_ready.php','shop/danal_ready_teledit.php') as $file) {
     checkout_verify(strpos(file_get_contents($root.'/'.$file),'/shop/orderformupdate.php')!==false, "$file returns to corrected handler");
 }
+// Danal callbacks restore session POST after common.php request extraction.
+// Execute the real persistence assignments with stale globals and untrusted form values.
+function checkout_shipping($code, $shipping, $extra) {
+    $od_send_cost=0; $od_send_cost2=0;
+    $send_cost=$shipping; $send_cost2=$extra;
+    $data=array('od_send_cost'=>99999,'od_send_cost2'=>99999);
+    $_POST=$data;
+    eval($code);
+    return array($od_send_cost,$od_send_cost2);
+}
+$shipping=checkout_fragment($pc,'    // The callback restores POST','    $od_email');
+foreach(array(array(5000,0),array(3000,2000),array(0,0)) as $costs) {
+    checkout_verify(checkout_shipping($shipping,$costs[0],$costs[1])===$costs,
+        'Danal persists validated shipping, including free and remote delivery, despite stale request globals');
+}
+// A synthetic two-product order checks the refund policy using the actual planner.
+define('_GNUBOARD_',true);
+require_once $root.'/lib/redtoy_danal_cancel.lib.php';
+$syntheticOrder=array('od_pg'=>'danal','od_settle_case'=>'card',
+    'od_tno'=>str_repeat('1',24),'od_receipt_time'=>'2026-01-01 10:00:00',
+    'od_coupon'=>0,'od_send_cost'=>5000,'od_send_cost2'=>0,'od_send_coupon'=>0,
+    'od_receipt_point'=>0,'od_receipt_price'=>25900,'od_cart_price'=>20900,
+    'od_cart_coupon'=>0,'od_tax_flag'=>0);
+$syntheticRows=array();
+foreach(array(15900,5000) as $i=>$price) $syntheticRows[]=array(
+    'ct_id'=>$i+1,'it_id'=>'synthetic_'.$i,'ct_qty'=>1,'ct_price'=>$price,
+    'io_price'=>0,'io_type'=>0,'io_id'=>'','ct_status'=>'입금','cp_price'=>0,'ct_notax'=>0);
+$base=array('order'=>$syntheticOrder,'carts'=>$syntheticRows,'coupons'=>array());
+$now='2026-01-02 10:00:00';
+$partial=redtoy_cancel_plan($base,$syntheticRows,array(1),$now);
+checkout_verify($partial['cash']===15900 && !$partial['full'],
+    'first product refund excludes shipping');
+$after=$syntheticRows; $after[0]['ct_status']='취소';
+$final=redtoy_cancel_plan($base,$after,array(2),$now);
+checkout_verify($final['cash']===10000 && $final['full'],
+    'last product refund includes remaining product and shipping');
+checkout_verify($partial['cash']+$final['cash']===25900,
+    'sequential refunds equal original paid total');
+$full=redtoy_cancel_plan($base,$syntheticRows,array(1,2),$now);
+checkout_verify($full['cash']===25900,'initial full refund includes shipping');
+$broken=$base; $broken['order']['od_send_cost']=0;
+$blocked=false;
+try { redtoy_cancel_plan($broken,$syntheticRows,array(1),$now); }
+catch (RuntimeException $e) { $blocked=$e->getMessage()==='amount_reconciliation_required'; }
+checkout_verify($blocked,'missing shipping remains blocked; no inferred refund amounts');
 echo "PASS: $checks checkout assertions; real accounting fragments, ledger spy; no DB/PG/API\n";
