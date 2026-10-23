@@ -441,6 +441,11 @@ add_javascript(G5_POSTCODE_JS, 0);    //다음 주소 js
     <h2 class="h2_frm">결제상세정보</h2>
     <?php echo $pg_anchor; ?>
 
+    <form id="redtoy_bank_receipt_form" action="./orderformreceiptupdate.php" method="post">
+        <input type="hidden" name="od_id" value="<?php echo $od_id; ?>">
+        <input type="hidden" name="receipt_action" value="confirm_bank">
+    </form>
+
     <form name="frmorderreceiptform" action="./orderformreceiptupdate.php" method="post" autocomplete="off">
     <input type="hidden" name="od_id" value="<?php echo $od_id; ?>">
     <input type="hidden" name="sort1" value="<?php echo $sort1; ?>">
@@ -933,6 +938,10 @@ add_javascript(G5_POSTCODE_JS, 0);    //다음 주소 js
     </div>
 
     <div class="btn_confirm01 btn_confirm">
+        <?php if ($od['od_settle_case'] === '무통장' && $od['od_status'] === '주문'
+            && (int)$od['od_misu'] > 0 && (int)$od['od_cancel_price'] === 0 && (int)$od['od_refund_price'] === 0) { ?>
+        <button type="submit" form="redtoy_bank_receipt_form" class="btn_submit btn" title="실제 입금을 확인한 후 누르세요. 남은 입금액과 현재 시각을 저장하고 입금확인 알림톡을 발송합니다.">입금 확인처리</button>
+        <?php } ?>
         <input type="submit" value="결제/배송내역 수정" class="btn_submit btn">
         <?php if($od['od_status'] == '주문' && $od['od_misu'] > 0) { ?>
         <a href="./personalpayform.php?popup=yes&amp;od_id=<?php echo $od_id; ?>" id="personalpay_add" class="btn btn_02">개인결제추가</a>

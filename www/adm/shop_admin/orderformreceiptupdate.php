@@ -16,6 +16,39 @@ $sort1 = isset($_REQUEST['sort1']) ? clean_xss_tags($_REQUEST['sort1'], 1, 1) : 
 $sort2 = isset($_REQUEST['sort2']) ? clean_xss_tags($_REQUEST['sort2'], 1, 1) : '';
 $sel_field = isset($_REQUEST['sel_field']) ? clean_xss_tags($_REQUEST['sel_field'], 1, 1) : '';
 
+// The dedicated action never trusts edited financial/shipping fields from this form.
+if (isset($_POST['receipt_action'])) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $_POST['receipt_action'] !== 'confirm_bank')
+        alert('잘못된 입금 확인 요청입니다.');
+    require_once G5_LIB_PATH.'/redtoy_bank_receipt.lib.php';
+    try {
+        redtoy_bank_receipt_confirm($od_id);
+    } catch (Throwable $e) {
+        $messages = array(
+            'busy' => '다른 작업이 처리 중입니다. 잠시 후 주문 상태를 다시 확인해 주세요.',
+            'bank_not_eligible' => '입금 대기 중인 무통장 주문만 처리할 수 있습니다. 주문 상태와 취소·환불 내역을 확인해 주세요.',
+            'bank_amount_mismatch' => '주문 금액 또는 상품 상태 확인이 필요합니다. 기존 수동 수정 화면에서 확인해 주세요.',
+            'reconciliation_required' => '확인 필요 취소 기록이 있습니다. 취소·환불 내역을 확인해 주세요.'
+        );
+        alert(isset($messages[$e->getMessage()]) ? $messages[$e->getMessage()]
+            : '입금 확인을 완료하지 못했습니다. 주문·상품 상태를 확인한 뒤 수동 처리해 주세요.');
+    }
+    // Financial changes are complete before either notification is attempted.
+    try {
+        if (function_exists('redtoy_tg_order')) redtoy_tg_order($od_id);
+    } catch (Throwable $e) { error_log('redtoy_bank_receipt: telegram_failed'); }
+    $od_send_alimtalk = 1;
+    try {
+        if (!defined('_ORDERALIMTALK_')) define('_ORDERALIMTALK_', true);
+        include './orderalimtalk.inc.php';
+    } catch (Throwable $e) {
+        error_log('redtoy_bank_receipt: notification_failed');
+        alert('입금 확인은 저장됐지만 알림톡 전송 중 오류가 발생했습니다. 발송 내역을 확인해 주세요.', './orderform.php?od_id='.rawurlencode($od_id));
+    }
+    goto_url('./orderform.php?od_id='.rawurlencode($od_id));
+    exit;
+}
+
 $check_keys = array(
 'od_deposit_name',
 'od_bank_account',
