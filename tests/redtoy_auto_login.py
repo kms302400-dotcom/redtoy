@@ -75,10 +75,13 @@ $config = ['cf_admin'=>'chief','cf_use_point'=>0,'cf_use_email_certify'=>1];
 $g5 = ['member_table'=>'synthetic_members','auth_table'=>'synthetic_auth','session_cookie_samesite'=>'Lax'];
 $group = $board = [];
 $member_skin_path = __DIR__.'/empty-skin';
-$url = '';
+$url = isset($_POST['url']) ? $_POST['url'] : '';
 $bo_table = '';
 function run_replace($tag, $value, ...$args) { return $value; }
 function run_event(...$args) {}
+function check_url_host($url, ...$args) {
+    if (parse_url($url, PHP_URL_HOST) !== 'fixture.invalid') throw new RuntimeException('Unexpected fixture redirect host');
+}
 function is_use_email_certify() { return true; }
 function get_member($id) {
     if (!in_array($id, ['customer','chief','staff','blocked','withdrawn','unverified'], true)) return [];
@@ -299,6 +302,22 @@ def run_tests(address):
     csrf = browser.request('/admin?csrf=issue')['token']
     check(browser.request('/admin?csrf=check', {'token':csrf}).get('admin_allowed'), 'admin valid CSRF token succeeds')
     check('denied' in browser.request('/admin?csrf=check', {'token':csrf}), 'admin rejects replayed CSRF token')
+    for who in ['customer', 'chief', 'staff']:
+        for auto in ['1', 'on', None]:
+            for target, tracking in [('http://fixture.invalid/', False),
+                                     ('http://fixture.invalid/shop/?from=cart', False),
+                                     ('http://fixture.invalid/shop/?from=cart', True)]:
+                browser = Browser(address)
+                data = {'mb_id': who, 'mb_password': 'synthetic-only-password', 'url': target}
+                if auto is not None:
+                    data['auto_login'] = auto
+                if tracking:
+                    data['campaign'] = 'synthetic'
+                result = browser.request('/login', data)
+                expected = target + ('&amp;campaign=synthetic' if tracking else '')
+                check(result.get('redirect') == expected, 'redirect excludes auto_login and retains existing URL/other parameters')
+                check((cookie_name('ck_auto') in browser.cookies) == (auto is not None),
+                      'redirect cleanup preserves opt-in/opt-out cookie behavior')
     # Parse the actual checkbox tags; no theme/bootstrap or operational settings are loaded.
     import re
     for name in ['theme/buzinga/skin/member/basic/login.skin.php',
