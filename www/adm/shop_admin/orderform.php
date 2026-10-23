@@ -60,6 +60,8 @@ $qstr1 = "od_status=".urlencode($od_status)."&amp;od_settle_case=".urlencode($od
 if($default['de_escrow_use'])
     $qstr1 .= "&amp;od_escrow=$od_escrow";
 $qstr = "$qstr1&amp;sort1=$sort1&amp;sort2=$sort2&amp;page=$page";
+require_once G5_LIB_PATH.'/redtoy_purchase.lib.php';
+$redtoy_purchase_back_url = redtoy_purchase_detail_back($od_id, $_GET);
 
 // 상품목록
 $sql = " select it_id,
@@ -949,7 +951,7 @@ add_javascript(G5_POSTCODE_JS, 0);    //다음 주소 js
         <?php if($od['od_misu'] < 0 && ($od['od_receipt_price'] - $od['od_refund_price']) > 0 && ($od['od_settle_case'] == '신용카드' || $od['od_settle_case'] == '계좌이체' || $od['od_settle_case'] == 'KAKAOPAY')) { ?>
         <a href="./orderpartcancel.php?od_id=<?php echo $od_id; ?>" id="orderpartcancel" class="btn btn_02"><?php echo $od['od_settle_case']; ?> 부분취소</a>
         <?php } ?>
-        <a href="./orderlist.php?<?php echo $qstr; ?>" class="btn btn_02">목록</a>
+        <a href="<?php echo $redtoy_purchase_back_url !== '' ? redtoy_purchase_h($redtoy_purchase_back_url) : './orderlist.php?'.$qstr; ?>" class="btn btn_02">목록</a>
     </div>
     </form>
 </section>

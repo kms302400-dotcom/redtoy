@@ -1,0 +1,7 @@
+-- Roll application code back FIRST. Disabling this feature does not require deleting saved codes.
+-- Preserve/backup this table if it has codes. Keeping it is compatible and avoids data loss.
+-- DROP TABLE `g5_redtoy_purchase_item`;
+
+-- OPTIONAL: remove only the index created by this feature, if you actually added it.
+-- Confirm no other workload depends on it and schedule its DDL separately.
+-- ALTER TABLE `g5_shop_cart` DROP INDEX `redtoy_purchase_item_order`;

@@ -238,4 +238,9 @@ $qstr .= "&amp;od_receipt_coupon=$od_receipt_coupon";
 
 //exit;
 
+// Preserve only validated navigation state; order mutation code above is unchanged.
+require_once G5_LIB_PATH.'/redtoy_purchase.lib.php';
+$purchase_return = redtoy_purchase_return($_POST);
+if ($purchase_return !== '') $qstr = $purchase_return;
+
 goto_url("./orderlist.php?$qstr");

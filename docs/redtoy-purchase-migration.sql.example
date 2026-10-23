@@ -1,0 +1,23 @@
+-- Substitute the actual configured prefix if it is not g5_. Apply manually before code.
+-- Confirm the cart it_id charset/collation first; match the new it_id to it if different.
+-- SHOW FULL COLUMNS FROM `g5_shop_cart` WHERE Field IN ('it_id','od_id');
+-- New, small table only. Never run this from a web request.
+CREATE TABLE IF NOT EXISTS `g5_redtoy_purchase_item` (
+  `it_id` VARCHAR(20) NOT NULL,
+  `updated_by` VARCHAR(20) NOT NULL DEFAULT '',
+  `updated_at` DATETIME NOT NULL,
+  PRIMARY KEY (`it_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- Preflight, read-only. Confirm a full covering index starting with it_id and containing od_id.
+SHOW INDEX FROM `g5_shop_cart`;
+SHOW TABLE STATUS LIKE 'g5_shop_cart';
+
+-- ONLY if no suitable existing covering index exists; back up first, use a quiet maintenance window.
+-- MyISAM may block writes for the full index build. Do not run blindly or during traffic peaks.
+-- InnoDB online support depends on the server version/definition; verify before applying.
+-- ALTER TABLE `g5_shop_cart` ADD INDEX `redtoy_purchase_item_order` (`it_id`, `od_id`);
+
+-- Verify after applying:
+SELECT COUNT(*) AS configured_codes FROM `g5_redtoy_purchase_item`;
+SHOW INDEX FROM `g5_shop_cart`;

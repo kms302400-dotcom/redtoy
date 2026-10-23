@@ -3,6 +3,13 @@ $sub_menu = '400400';
 include_once('./_common.php');
 
 auth_check_menu($auth, $sub_menu, "r");
+require_once G5_LIB_PATH.'/redtoy_purchase.lib.php';
+$purchase_only = isset($_GET['purchase_only']) && redtoy_purchase_on($_GET['purchase_only']);
+$purchase_notice = '';
+$purchase_from = '';
+$purchase_context = redtoy_purchase_context($_GET);
+$purchase_toggle = $purchase_context;
+$purchase_toggle['purchase_only'] = $purchase_only ? '0' : '1';
 
 $g5['title'] = '주문내역';
 include_once (G5_ADMIN_PATH.'/admin.head.php');
@@ -105,6 +112,21 @@ if ($fr_date && $to_date) {
     $where[] = " od_time between '$fr_date 00:00:00' and '$to_date 23:59:59' ";
 }
 
+if ($purchase_only) {
+    try {
+        $purchase_filter = redtoy_purchase_filter();
+        $where[] = $purchase_filter['where'];
+        $purchase_from = $purchase_filter['from'];
+        if ($purchase_filter['where'] === '1=0') $purchase_notice = '등록된 사입제품이 없습니다. 사입제품관리에서 상품코드를 등록해 주세요.';
+    }
+    catch (Throwable $e) {
+        $where[] = '1=0';
+        $purchase_notice = $e->getMessage() === 'purchase_index_required'
+            ? '사입제품 조회용 인덱스 확인이 필요합니다. DB 적용 안내를 확인해 주세요.'
+            : '사입제품 설정을 읽지 못했습니다. DB 적용 상태를 확인해 주세요.';
+    }
+}
+
 if ($where) {
     $sql_search = ' where '.implode(' and ', $where);
 }
@@ -113,10 +135,13 @@ if ($sel_field == "")  $sel_field = "od_id";
 if ($sort1 == "") $sort1 = "od_id";
 if ($sort2 == "") $sort2 = "desc";
 
-$sql_common = " from {$g5['g5_shop_order_table']} $sql_search ";
+$sql_common = ($purchase_from !== '' ? $purchase_from : " from {$g5['g5_shop_order_table']}")." $sql_search ";
 
 $sql = " select count(od_id) as cnt " . $sql_common;
-$row = sql_fetch($sql);
+if ($purchase_only) {
+    try { $row = mysqli_fetch_assoc(redtoy_purchase_select($sql)); }
+    catch (Throwable $e) { $row = array('cnt'=>0); $purchase_notice = '사입제품 조회를 완료하지 못했습니다. 기간을 줄이거나 DB 상태를 확인해 주세요.'; }
+} else { $row = sql_fetch($sql); }
 $total_count = $row['cnt'];
 
 $rows = $config['cf_page_rows'];
@@ -129,11 +154,20 @@ $sql  = " select *,
            $sql_common
            order by $sort1 $sort2
            limit $from_record, $rows ";
-$result = sql_query($sql);
+if ($purchase_only) {
+    if ($purchase_notice) $sql = "select *, 0 as couponprice from {$g5['g5_shop_order_table']} where 1=0";
+    try { $result = redtoy_purchase_select($sql); }
+    catch (Throwable $e) {
+        $result = sql_query("select *, 0 as couponprice from {$g5['g5_shop_order_table']} where 1=0");
+        $total_count = $total_page = 0;
+        $purchase_notice = '사입제품 조회를 완료하지 못했습니다. 기간을 줄이거나 DB 상태를 확인해 주세요.';
+    }
+} else { $result = sql_query($sql); }
 
 $qstr1 = "od_status=".urlencode($od_status)."&amp;od_settle_case=".urlencode($od_settle_case)."&amp;od_misu=$od_misu&amp;od_cancel_price=$od_cancel_price&amp;od_refund_price=$od_refund_price&amp;od_receipt_point=$od_receipt_point&amp;od_coupon=$od_coupon&amp;fr_date=$fr_date&amp;to_date=$to_date&amp;sel_field=$sel_field&amp;search=$search&amp;save_search=$search";
 if($default['de_escrow_use'])
     $qstr1 .= "&amp;od_escrow=$od_escrow";
+$qstr1 .= '&amp;purchase_only='.($purchase_only ? '1' : '0');
 $qstr = "$qstr1&amp;sort1=$sort1&amp;sort2=$sort2&amp;page=$page";
 
 $listall = '<a href="'.$_SERVER['SCRIPT_NAME'].'" class="ov_listall">전체목록</a>';
@@ -159,7 +193,9 @@ if( function_exists('pg_setting_check') ){
     <?php } ?>
 </div>
 
+<?php if ($purchase_notice) { ?><p role="alert" style="color:#b42318"><?php echo redtoy_purchase_h($purchase_notice); ?></p><?php } ?>
 <form name="frmorderlist" class="local_sch01 local_sch">
+<?php echo redtoy_purchase_hidden($purchase_context, array('sort1','sort2','save_search','sel_field','search')); ?>
 <input type="hidden" name="doc" value="<?php echo $doc; ?>">
 <input type="hidden" name="sort1" value="<?php echo $sort1; ?>">
 <input type="hidden" name="sort2" value="<?php echo $sort2; ?>">
@@ -183,10 +219,13 @@ if( function_exists('pg_setting_check') ){
 <label for="search" class="sound_only">검색어<strong class="sound_only"> 필수</strong></label>
 <input type="text" name="search" value="<?php echo $search; ?>" id="search" required class="required frm_input" autocomplete="off">
 <input type="submit" value="검색" class="btn_submit">
+<a href="./redtoy_purchase.php?purchase_context=<?php echo rawurlencode(http_build_query($purchase_context, '', '&', PHP_QUERY_RFC3986)); ?>" class="btn btn_02">사입제품관리</a>
+<a href="<?php echo redtoy_purchase_h(redtoy_purchase_url($purchase_toggle)); ?>" class="btn <?php echo $purchase_only ? 'btn_01' : 'btn_02'; ?>" role="button" aria-pressed="<?php echo $purchase_only ? 'true' : 'false'; ?>"<?php if ($purchase_only) { ?> style="background:#1d4ed8;color:#fff;border-color:#1d4ed8"<?php } ?>>사입제품 주문건 보기 <?php echo $purchase_only ? 'ON' : 'OFF'; ?></a>
 
 </form>
 
 <form class="local_sch03 local_sch">
+<?php echo redtoy_purchase_hidden($purchase_context, array('od_status','od_settle_case','od_misu','od_cancel_price','od_refund_price','od_receipt_point','od_coupon','od_escrow','fr_date','to_date')); ?>
 <div>
     <strong>주문상태</strong>
     <input type="radio" name="od_status" value="" id="od_status_all"    <?php echo get_checked($od_status, '');     ?>>
@@ -261,6 +300,7 @@ if( function_exists('pg_setting_check') ){
 </form>
 
 <form name="forderlist" id="forderlist" onsubmit="return forderlist_submit(this);" method="post" autocomplete="off">
+<input type="hidden" name="purchase_context" value="<?php echo redtoy_purchase_h(http_build_query($purchase_context, '', '&', PHP_QUERY_RFC3986)); ?>">
 <input type="hidden" name="search_od_status" value="<?php echo $od_status; ?>">
 
 <div class="tbl_head01 tbl_wrap">
@@ -374,7 +414,7 @@ if( function_exists('pg_setting_check') ){
         </td>
         <td headers="th_odrer" class="td_name"><?php echo $mb_nick; ?></td>
         <td headers="th_odrertel" class="td_tel"><?php echo get_text($row['od_tel']); ?></td>
-        <td headers="th_recvr" class="td_name"><a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>?sort1=<?php echo $sort1; ?>&amp;sort2=<?php echo $sort2; ?>&amp;sel_field=od_b_name&amp;search=<?php echo get_text($row['od_b_name']); ?>"><?php echo get_text($row['od_b_name']); ?></a></td>
+        <td headers="th_recvr" class="td_name"><a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>?<?php echo redtoy_purchase_h(http_build_query(array_merge($purchase_context, array('sel_field'=>'od_b_name','search'=>$row['od_b_name'],'save_search'=>$row['od_b_name'])), '', '&', PHP_QUERY_RFC3986)); ?>"><?php echo get_text($row['od_b_name']); ?></a></td>
         <td rowspan="3" class="td_num td_numsum"><?php echo number_format($row['od_cart_price'] + $row['od_send_cost'] + $row['od_send_cost2']); ?></td>
         <td rowspan="3" class="td_num_right"><?php echo number_format($row['od_receipt_price']); ?></td>
         <td rowspan="3" class="td_numcancel<?php echo $td_color; ?> td_num"><?php echo number_format($row['od_cancel_price']); ?></td>
@@ -387,7 +427,7 @@ if( function_exists('pg_setting_check') ){
     <tr class="<?php echo $bg; ?>">
         <td headers="th_odrid">
             <?php if ($row['mb_id']) { ?>
-            <a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>?sort1=<?php echo $sort1; ?>&amp;sort2=<?php echo $sort2; ?>&amp;sel_field=mb_id&amp;search=<?php echo $row['mb_id']; ?>"><?php echo $row['mb_id']; ?></a>
+            <a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>?<?php echo redtoy_purchase_h(http_build_query(array_merge($purchase_context, array('sel_field'=>'mb_id','search'=>$row['mb_id'],'save_search'=>$row['mb_id'])), '', '&', PHP_QUERY_RFC3986)); ?>"><?php echo $row['mb_id']; ?></a>
             <?php } else { ?>
             비회원
             <?php } ?>
