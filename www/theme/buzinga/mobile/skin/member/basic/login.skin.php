@@ -54,7 +54,7 @@ include_once(G5_THEME_MSHOP_PATH.'/shop.head.php');
 				</div>
 				<div style="display: flex; justify-content: space-between; margin:0;">
 					<div id="login_info" class="chk_box" style="display:flex;">
-						<input type="checkbox" name="auto_login" id="login_auto_login" class="selec_chk">
+						<input type="checkbox" name="auto_login" value="1" id="login_auto_login" checked="checked" class="selec_chk">
 						<label for="login_auto_login"><span></span>자동 로그인</label>
 					</div>
 					<div style="text-align:right"><a href="<?php echo G5_BBS_URL ?>/password_lost.php" id="login_password_lost" style="color: #676e70;">아이디/비밀번호 찾기</a></div>

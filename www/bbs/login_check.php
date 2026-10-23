@@ -81,20 +81,17 @@ if($config['cf_use_point']) {
     sql_query($sql);
 }
 
-// 3.26
-// 아이디 쿠키에 한달간 저장
-//if (isset($auto_login) && $auto_login) {
-    // 3.27
-    // 자동로그인 ---------------------------
-    // 쿠키 한달간 저장
+// 체크한 경우에만 자동로그인 쿠키를 365일간 저장한다.
+$use_auto_login = isset($_POST['auto_login']) && is_string($_POST['auto_login'])
+    && in_array($_POST['auto_login'], array('1', 'on'), true);
+if ($use_auto_login) {
     $key = md5($_SERVER['SERVER_ADDR'] . $_SERVER['SERVER_SOFTWARE'] . $_SERVER['HTTP_USER_AGENT'] . $mb['mb_password']);
     set_cookie('ck_mb_id', $mb['mb_id'], 86400 * 365);
     set_cookie('ck_auto', $key, 86400 * 365);
-    // 자동로그인 end ---------------------------
-//} else {
-//    set_cookie('ck_mb_id', '', 0);
-//    set_cookie('ck_auto', '', 0);
-//}
+} else {
+    set_cookie('ck_mb_id', '', 0);
+    set_cookie('ck_auto', '', 0);
+}
 
 if ($url) {
     // url 체크
