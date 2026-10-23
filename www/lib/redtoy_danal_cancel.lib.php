@@ -272,7 +272,7 @@ function redtoy_cancel_execute($id,$ids,$expected,$op,$actor,$transport=null)
         if ($existing) { if ($existing['od_id']!==$id || $existing['actor_id']!==$actor) throw new RuntimeException('invalid_operation'); if ($existing['state']==='done') return 'done'; throw new RuntimeException('reconciliation_required'); }
         $plan=redtoy_cancel_quote($id,$ids,G5_TIME_YMDHIS);
         if (!hash_equals($plan['fingerprint'],$expected)) throw new RuntimeException('quote_changed');
-        if ($transport===null && $plan['cash']>0) { require_once __DIR__.'/redtoy_danal_cancel_pg.lib.php'; redtoy_cancel_pg_ready($plan); }
+        if ($transport===null) { require_once __DIR__.'/redtoy_danal_cancel_pg.lib.php'; redtoy_cancel_pg_ready($plan); }
         $transactional=redtoy_cancel_transactional();
         $json=redtoy_cancel_escape(json_encode($plan,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
         $oid=redtoy_cancel_escape($id); $actor=redtoy_cancel_escape($actor);

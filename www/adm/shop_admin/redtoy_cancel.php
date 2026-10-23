@@ -67,7 +67,7 @@ try {
             foreach ($carts as $ct) if (isset($products[$ct['it_id']]) && in_array($ct['ct_status'],array('주문','입금','준비','배송','완료'),true)) $ids[]=(int)$ct['ct_id'];
             $locks=redtoy_cancel_locks($id);
             try { $plan=redtoy_cancel_quote($id,$ids,G5_TIME_YMDHIS); } finally { redtoy_cancel_unlock($locks); }
-            if ($plan['cash']>0) {
+            {
                 require_once G5_LIB_PATH.'/redtoy_danal_cancel_pg.lib.php';
                 try { redtoy_cancel_pg_ready($plan); } catch (Throwable $ignored) { $pgReady=false; }
             }

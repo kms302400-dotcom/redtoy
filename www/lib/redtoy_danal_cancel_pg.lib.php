@@ -4,6 +4,7 @@ if (!defined('_GNUBOARD_')) exit;
 function redtoy_cancel_pg_ready($plan)
 {
     if (getenv('REDTOY_PG_CANCEL_ENABLED')!=='1') throw new RuntimeException('pg_not_configured');
+    if (isset($plan['cash']) && $plan['cash']===0) return;
     $method=$plan['method'];
     if ($method==='card') {
         foreach (array('REDTOY_DANAL_CARD_CPID'=>10,'REDTOY_DANAL_CARD_KEY'=>64,'REDTOY_DANAL_CARD_IV'=>32) as $name=>$length) {

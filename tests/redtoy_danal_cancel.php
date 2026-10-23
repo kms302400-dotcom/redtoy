@@ -155,6 +155,17 @@ try {
     list($p,$op)=run_cancel('returnoff',$ids);check_cancel((int)redtoy_cancel_one("select po_point from points where po_rel_action='{$op}:return'")['po_point']===10000 && $config['cf_use_point']===0,'used points returned even if new awards globally disabled');$config['cf_use_point']=1;
     $ids=fixture_cancel('guest',false,0,false);redtoy_cancel_query("update orders set mb_id='' where od_id='guest'");list($p)=run_cancel('guest',$ids);check_cancel($p['return_points']===0 && $p['recover_points']===0,'guest full refund creates no invented points');
     $ids=fixture_cancel('left');redtoy_cancel_query("update members set mb_leave_date='20261023' where mb_id='customer'");reject_cancel(function()use($ids){redtoy_cancel_quote('left',$ids,G5_TIME_YMDHIS);},'point_refund_account_required');redtoy_cancel_query("update members set mb_leave_date='' where mb_id='customer'");
+    $ids=fixture_cancel('zerocash',false,0,false);
+    redtoy_cancel_query("update cart set ct_price=0 where od_id='zerocash' and it_id='A'");
+    redtoy_cancel_query("update cart set ct_price=100000 where od_id='zerocash' and it_id='B'");
+    $p=redtoy_cancel_quote('zerocash',array($ids[0]),G5_TIME_YMDHIS);check_cancel($p['cash']===0,'zero-price product has zero PG refund');
+    putenv('REDTOY_PG_CANCEL_ENABLED=0');
+    reject_cancel(function()use($ids,$p){redtoy_cancel_execute('zerocash',array($ids[0]),$p['fingerprint'],bin2hex(random_bytes(16)),'admin');},'pg_not_configured');
+    check_cancel(!redtoy_cancel_pending('zerocash') && redtoy_cancel_carts('zerocash')[0]['ct_status']==='입금','disabled switch prevents even zero-cash internal cancellation');
+    putenv('REDTOY_PG_CANCEL_ENABLED=1');
+    $n=$calls;redtoy_cancel_execute('zerocash',array($ids[0]),$p['fingerprint'],bin2hex(random_bytes(16)),'admin');
+    check_cancel($n===$calls && redtoy_cancel_carts('zerocash')[0]['ct_status']==='취소','enabled zero-cash cancellation needs no external transport');
+    putenv('REDTOY_PG_CANCEL_ENABLED=0');
     // Exercise the real controller and existing admin permission/CSRF functions with a fake web root.
     $fixture=sys_get_temp_dir().'/redtoy-cancel-controller-'.bin2hex(random_bytes(6));mkdir($fixture,0700);
     mkdir($fixture.'/adm/shop_admin',0700,true);mkdir($fixture.'/bbs',0700);file_put_contents($fixture.'/bbs/alert.php','<?php echo $msg;');symlink($root.'/lib',$fixture.'/lib');copy($root.'/config.php',$fixture.'/config.php');copy($root.'/version.php',$fixture.'/version.php');
