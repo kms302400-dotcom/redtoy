@@ -49,13 +49,24 @@ function redtoy_tg_decrypt($cipher)
     return $plain;
 }
 
-function redtoy_tg_clean($text)
+function redtoy_tg_clean($text, $redact = true)
 {
     $text = html_entity_decode(strip_tags((string)$text), ENT_QUOTES, 'UTF-8');
     $text = preg_replace('/[\x00-\x1f\x7f]+/u', ' ', $text);
-    $text = preg_replace('/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu', '[이메일 생략]', $text);
-    $text = preg_replace('/(?<!\d)(?:\+82[ -]?)?0?1[016789][ -]?\d{3,4}[ -]?\d{4}(?!\d)/u', '[연락처 생략]', $text);
+    if ($redact) {
+        $text = preg_replace('/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu', '[이메일 생략]', $text);
+        $text = preg_replace('/(?<!\d)(?:\+82[ -]?)?0?1[016789][ -]?\d{3,4}[ -]?\d{4}(?!\d)/u', '[연락처 생략]', $text);
+    }
     return function_exists('mb_substr') ? mb_substr(trim($text), 0, 160, 'UTF-8') : substr(trim($text), 0, 160);
+}
+
+function redtoy_tg_payment_name($method)
+{
+    $names = array('card'=>'신용카드','신용카드'=>'신용카드',
+        'hpp'=>'휴대폰','mobile'=>'휴대폰','휴대폰'=>'휴대폰',
+        '무통장'=>'무통장입금','무통장입금'=>'무통장입금',
+        'bank'=>'계좌이체','iche'=>'계좌이체','vbank'=>'가상계좌');
+    return isset($names[$method]) ? $names[$method] : redtoy_tg_clean($method);
 }
 
 function redtoy_tg_paid($order)
@@ -128,20 +139,27 @@ function redtoy_tg_order($id, $created = false)
     try {
         if (!is_scalar($id) || !preg_match('/^[0-9]{1,32}$/D', (string)$id)) return;
         $id = sql_real_escape_string((string)$id);
-        $od = redtoy_tg_row("select od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case from {$g5['g5_shop_order_table']} where od_id='$id'");
+        $od = redtoy_tg_row("select od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case,od_name,od_hp,od_tel,od_b_hp,od_b_tel,od_b_addr1,od_b_addr2,od_b_addr3 from {$g5['g5_shop_order_table']} where od_id='$id'");
         if (!$od) return;
         $cart = redtoy_tg_row("select it_name from {$g5['g5_shop_cart_table']} where od_id='$id' and ct_select=1 and ct_status<>'쇼핑' order by ct_id limit 1");
         if (!$cart) return;
-        $events = $created ? array('order_created') : array();
+        $method = redtoy_tg_payment_name($od['od_settle_case']);
+        $instant = in_array($method, array('신용카드','휴대폰'), true);
+        $events = $created && !$instant ? array('order_created') : array();
         if (redtoy_tg_paid($od)) $events[] = 'order_paid';
         foreach ($events as $event) {
             $amount = $event === 'order_paid' ? $od['od_receipt_price'] : max(0, $od['od_cart_price'] + $od['od_send_cost'] + $od['od_send_cost2'] - $od['od_cart_coupon'] - $od['od_coupon'] - $od['od_send_coupon'] - $od['od_receipt_point']);
-            $time = $event === 'order_created' ? $od['od_time'] : $od['od_receipt_time'];
-            if (!$time || substr($time, 0, 4) === '0000') $time = G5_TIME_YMDHIS;
-            $text = '[레드토이] '.redtoy_tg_events()[$event]."\n주문번호: ".$id
-                ."\n대표 상품: ".redtoy_tg_clean($cart['it_name'])."\n결제금액: ".number_format($amount).'원'
-                ."\n결제수단: ".redtoy_tg_clean($od['od_settle_case'])."\n처리 시각: ".$time
-                ."\n".G5_ADMIN_URL.'/shop_admin/orderform.php?od_id='.rawurlencode($id);
+            $title = $event === 'order_paid' ? '🟢 [레드토이 결제완료 주문]' : '🟡 [레드토이 주문접수]';
+            $phone = trim($od['od_hp']) ?: (trim($od['od_tel']) ?: (trim($od['od_b_hp']) ?: trim($od['od_b_tel'])));
+            // These explicitly requested operational fields may contain customer contact/address data.
+            $text = $title."\n\n주문번호 : ".$id
+                ."\n상품명 : ".redtoy_tg_clean($cart['it_name'])."\n결제금액 : ".number_format($amount).'원'
+                ."\n결제수단 : ".$method
+                ."\n고객명 : ".redtoy_tg_clean($od['od_name'], false)
+                ."\n연락처 : ".redtoy_tg_clean($phone, false)
+                ."\n배송지주소 : ".redtoy_tg_clean($od['od_b_addr1'], false)
+                ."\n상세주소 : ".redtoy_tg_clean(trim($od['od_b_addr2'].' '.$od['od_b_addr3']), false)
+                ."\n\n관리자 주문 확인:\n".G5_ADMIN_URL.'/shop_admin/orderform.php?od_id='.rawurlencode($id);
             redtoy_tg_enqueue($event, $id, $text);
         }
     } catch (Throwable $e) { error_log('redtoy_telegram: order_event_failed'); }
@@ -183,6 +201,20 @@ function redtoy_tg_classify($errno, $http, $body)
     return array('status'=>'uncertain', 'code'=>'response_unknown', 'delay'=>0, 'message_id'=>'');
 }
 
+// Apply formatting only to the new order headings; old jobs and QA remain plain text.
+function redtoy_tg_payload($chat, $message)
+{
+    $payload = array('chat_id'=>$chat, 'text'=>$message, 'disable_web_page_preview'=>'true');
+    if (strpos($message, "🟢 [레드토이 결제완료 주문]\n") === 0 || strpos($message, "🟡 [레드토이 주문접수]\n") === 0) {
+        $lines = explode("\n", $message, 2);
+        $heading = explode(' ', $lines[0], 2);
+        $payload['parse_mode'] = 'HTML';
+        $payload['text'] = $heading[0].' <b>'.htmlspecialchars($heading[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."</b>\n"
+            .htmlspecialchars($lines[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+    return $payload;
+}
+
 function redtoy_tg_send($token, $chat, $message)
 {
     if (!function_exists('curl_init')) return array('status'=>'failed','code'=>'curl_unavailable','delay'=>60,'message_id'=>'','http'=>0);
@@ -190,7 +222,7 @@ function redtoy_tg_send($token, $chat, $message)
     curl_setopt_array($ch, array(CURLOPT_POST=>true, CURLOPT_RETURNTRANSFER=>true,
         CURLOPT_CONNECTTIMEOUT=>2, CURLOPT_TIMEOUT=>5, CURLOPT_FOLLOWLOCATION=>false,
         CURLOPT_SSL_VERIFYPEER=>true, CURLOPT_SSL_VERIFYHOST=>2,
-        CURLOPT_POSTFIELDS=>http_build_query(array('chat_id'=>$chat, 'text'=>$message, 'disable_web_page_preview'=>'true'))));
+        CURLOPT_POSTFIELDS=>http_build_query(redtoy_tg_payload($chat, $message))));
     $body = curl_exec($ch);
     $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $result = redtoy_tg_classify(curl_errno($ch), $http, is_string($body) ? $body : '');

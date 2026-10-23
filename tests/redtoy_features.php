@@ -71,7 +71,7 @@ function goto_url($url) { throw new ReviewAlert('redirect'); }
 require G5_PATH.'/lib/redtoy_review.lib.php';
 require G5_PATH.'/lib/redtoy_telegram.lib.php';
 $fixture_schema = "create table auth(mb_id text, au_menu text, au_auth text);
-create table orders(od_id text primary key,od_status text,od_misu int,od_time text,od_receipt_time text,od_cart_price int,od_send_cost int,od_send_cost2 int,od_cart_coupon int,od_coupon int,od_send_coupon int,od_receipt_point int,od_receipt_price int,od_settle_case text);
+create table orders(od_id text primary key,od_status text,od_misu int,od_time text,od_receipt_time text,od_cart_price int,od_send_cost int,od_send_cost2 int,od_cart_coupon int,od_coupon int,od_send_coupon int,od_receipt_point int,od_receipt_price int,od_settle_case text,od_name text default '',od_hp text default '',od_tel text default '',od_b_hp text default '',od_b_tel text default '',od_b_addr1 text default '',od_b_addr2 text default '',od_b_addr3 text default '');
 create table cart(ct_id int,od_id text,mb_id text,it_id text,it_name text,ct_select int,ct_status text);
 create table qa(qa_id int,qa_parent int,qa_type int,qa_subject text,qa_datetime text);
 create table g5_redtoy_telegram_config(id int primary key,enabled int,token_cipher text,chat_id text,order_created int,order_paid int,qa_created int,qa_answered int,updated_at text);
@@ -110,7 +110,7 @@ $tampered=base64_decode($cipher); $tampered[15]=chr(ord($tampered[15])^1);
 try { redtoy_tg_decrypt(base64_encode($tampered)); verify(false,'tamper rejected'); } catch (RuntimeException $e) { verify(true,'tamper rejected'); }
 $stmt=$db->prepare('insert into g5_redtoy_telegram_config values(1,1,?, ?,1,1,1,1,?)');
 $stmt->execute(array($cipher,'-1',G5_TIME_YMDHIS));
-$db->exec("insert into orders values('101','주문',12000,'2026-10-06 12:00:00','0000-00-00 00:00:00',10000,2000,0,0,0,0,0,0,'무통장');
+$db->exec("insert into orders (od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case) values('101','주문',12000,'2026-10-06 12:00:00','0000-00-00 00:00:00',10000,2000,0,0,0,0,0,0,'무통장');
 insert into cart values(1,'101','customer','item1','테스트 상품',1,'주문');
 insert into qa values(10,10,0,'문의 제목','2026-10-06 12:00:00');
 insert into qa values(11,10,1,'답변 제목','2026-10-06 12:10:00');");
@@ -175,15 +175,74 @@ $db->exec("update g5_redtoy_telegram_queue set attempts=0,status='pending' where
 verify(redtoy_tg_worker(10,$transport)===0,'disabling pauses already queued work');
 $db->exec("update g5_redtoy_telegram_config set enabled=1");
 verify(redtoy_tg_worker(10,$transport)===1,'manual reset can resend failed event');
-$db->exec("insert into orders select '102','입금',0,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,12000,'신용카드' from orders where od_id='101'");
+$db->exec("insert into orders (od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case) select '102','입금',0,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,12000,'신용카드' from orders where od_id='101'");
 redtoy_tg_order('102',true);
 verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='102'")->fetchColumn()==0,'incomplete order without saved cart suppressed');
 $db->exec("insert into cart values(2,'102','customer','item1','카드결제 상품',1,'입금')");
 redtoy_tg_order('102',true);
-verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='102'")->fetchColumn()==2,'PG paid-at-creation emits both events');
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='102'")->fetchColumn()==1,'card paid-at-creation emits payment event only');
 $db->exec("update orders set od_status='취소' where od_id='102'");
 verify(!redtoy_tg_paid(sql_fetch("select * from orders where od_id='102'")), 'cancelled order does not qualify for payment event');
 verify(!redtoy_tg_paid(array('od_status'=>'주문','od_misu'=>0)), 'zero outstanding alone does not qualify');
+// New order notification policy and requested message fields; all data are synthetic.
+function telegram_fixture_order($id,$method,$paid) {
+    global $db;
+    $stmt=$db->prepare("insert into orders
+        (od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case,od_name,od_hp,od_tel,od_b_hp,od_b_tel,od_b_addr1,od_b_addr2,od_b_addr3)
+        values(?,?,?,'2026-10-06 12:00:00','2026-10-06 12:20:00',10000,2000,0,0,0,0,0,?,?,
+        '테스트 고객','010-0000-0000','02-000-0000','','','테스트시 테스트로 1','테스트호','참고항목')");
+    $stmt->execute(array($id,$paid?'입금':'주문',$paid?0:12000,$paid?12000:0,$method));
+    $stmt=$db->prepare("insert into cart values(20,?,'synthetic','item1','테스트 상품',1,?)");
+    $stmt->execute(array($id,$paid?'입금':'주문'));
+}
+foreach (array('card','hpp','mobile','신용카드','휴대폰') as $index=>$method) {
+    $id=(string)(120+$index); telegram_fixture_order($id,$method,true);
+    redtoy_tg_order($id,true); redtoy_tg_order($id,true); redtoy_tg_order($id);
+    $jobs=$db->query("select event_type,message from g5_redtoy_telegram_queue where object_id='$id'")->fetchAll(PDO::FETCH_ASSOC);
+    verify(count($jobs)===1 && $jobs[0]['event_type']==='order_paid', "$method emits only one payment event across duplicate submits/callbacks");
+    verify(strpos($jobs[0]['message'],"🟢 [레드토이 결제완료 주문]\n\n")===0, "$method paid heading");
+    verify(strpos($jobs[0]['message'],'결제수단 : '.(in_array($method,array('card','신용카드'),true)?'신용카드':'휴대폰'))!==false, "$method uses Korean payment label");
+}
+telegram_fixture_order('130','hpp',false);
+redtoy_tg_order('130',true);
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='130'")->fetchColumn()==0,'unpaid phone order creates no premature notification');
+$db->exec("update orders set od_status='입금',od_misu=0,od_receipt_price=12000 where od_id='130'");
+redtoy_tg_order('130'); redtoy_tg_order('130');
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='130' and event_type='order_paid'")->fetchColumn()==1,'later phone approval produces one payment event');
+telegram_fixture_order('140','무통장',false);
+redtoy_tg_order('140',true); redtoy_tg_order('140',true); redtoy_tg_order('140');
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='140'")->fetchColumn()==1,'bank order initially produces only receipt notification');
+$bankCreated=sql_fetch("select message from g5_redtoy_telegram_queue where object_id='140' and event_type='order_created'")['message'];
+verify(strpos($bankCreated,"🟡 [레드토이 주문접수]\n\n")===0,'bank receipt clearly distinguished from payment');
+$db->exec("update orders set od_status='입금',od_misu=0,od_receipt_price=12000 where od_id='140'");
+redtoy_tg_order('140'); redtoy_tg_order('140'); redtoy_tg_order('140',true);
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='140'")->fetchColumn()==2,'bank admin deposit confirmation adds exactly one paid message');
+$bankPaid=sql_fetch("select message from g5_redtoy_telegram_queue where object_id='140' and event_type='order_paid'")['message'];
+foreach (array('주문번호 : 140','상품명 : 테스트 상품','결제금액 : 12,000원','결제수단 : 무통장입금',
+    '고객명 : 테스트 고객','연락처 : 010-0000-0000','배송지주소 : 테스트시 테스트로 1','상세주소 : 테스트호 참고항목',
+    "관리자 주문 확인:\nhttps://shop.invalid/adm/shop_admin/orderform.php?od_id=140") as $field) {
+    verify(strpos($bankPaid,$field)!==false,'requested order field included');
+}
+verify(strpos($bankPaid,'처리 시각')===false,'old timestamp line removed from order layout');
+$db->exec("update orders set od_hp='010-1111-1111' where od_id='140'");
+redtoy_tg_order('140');
+verify(sql_fetch("select message from g5_redtoy_telegram_queue where object_id='140' and event_type='order_paid'")['message']===$bankPaid,'duplicate events retain original message snapshot');
+telegram_fixture_order('141','hpp',true);
+$db->exec("update orders set od_hp='' where od_id='141'");
+redtoy_tg_order('141',true);
+verify(strpos(sql_fetch("select message from g5_redtoy_telegram_queue where object_id='141'")['message'],'연락처 : 02-000-0000')!==false,'missing mobile number falls back to order telephone');
+$payload=redtoy_tg_payload('-1',$bankPaid."\n<script>unsafe</script>&");
+verify($payload['parse_mode']==='HTML' && strpos($payload['text'],'🟢 <b>[레드토이 결제완료 주문]</b>')===0,'paid heading uses actual Telegram bold formatting');
+verify(strpos($payload['text'],'&lt;script&gt;unsafe&lt;/script&gt;&amp;')!==false,'customer content is escaped for Telegram HTML');
+verify(redtoy_tg_payload('-1',$bankCreated)['parse_mode']==='HTML','bank receipt heading also supports bold');
+verify(!isset(redtoy_tg_payload('-1','[레드토이] 문의 <plain>')['parse_mode']),'QA and old queued messages retain plain text');
+$db->exec("update g5_redtoy_telegram_config set order_created=0,order_paid=1");
+telegram_fixture_order('142','card',true);redtoy_tg_order('142',true);
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='142'")->fetchColumn()==1,'paid event works independently of receipt toggle');
+$db->exec("update g5_redtoy_telegram_config set order_created=1,order_paid=0");
+telegram_fixture_order('143','hpp',true);redtoy_tg_order('143',true);
+verify($db->query("select count(*) from g5_redtoy_telegram_queue where object_id='143'")->fetchColumn()==0,'disabled paid event never falls back to phone receipt');
+$db->exec("update g5_redtoy_telegram_config set order_paid=1");
 $fail_queue=true;
 redtoy_tg_order('101',true);redtoy_tg_qa(10,array(),'',array(),null);
 verify(sql_fetch("select od_status from orders where od_id='101'")['od_status']==='입금','notification storage failure leaves saved order intact');
