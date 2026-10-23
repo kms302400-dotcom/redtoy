@@ -1,0 +1,15 @@
+-- Actual prefix must match G5_TABLE_PREFIX. Apply separately before deploying code.
+CREATE TABLE `g5_redtoy_order_log` (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  event VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  customer_kind VARCHAR(8) NOT NULL,
+  partner_id VARCHAR(20) NOT NULL DEFAULT '',
+  products_json MEDIUMTEXT NULL,
+  device_type VARCHAR(8) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY order_event (order_id,event),
+  KEY created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SHOW INDEX FROM `g5_redtoy_order_log`;

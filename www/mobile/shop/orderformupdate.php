@@ -594,6 +594,7 @@ $od_deposit_name  = clean_xss_tags($od_deposit_name);
 $od_tax_flag      = $default['de_tax_flag_use'];
 
 // 주문서에 입력
+if (function_exists('redtoy_order_log') && !empty($od_tno) && (int)$od_receipt_price > 0) redtoy_order_log($od_id, 'payment_confirmed');
 $sql = " insert {$g5['g5_shop_order_table']}
             set od_id             = '$od_id',
                 mb_id             = '{$member['mb_id']}',
@@ -665,6 +666,7 @@ if(! $result && (isset($exists_order['od_id']) && $od_id && $exists_order['od_id
 
 // 주문정보 입력 오류시 결제 취소
 if(! $result || ! (isset($exists_order['od_id']) && $od_id && $exists_order['od_id'] === $od_id)) {
+    if (function_exists('redtoy_order_log')) redtoy_order_log($od_id, 'save_failed');
     if($tno) {
         $cancel_msg = '주문정보 입력 오류 : '.$sql;
         switch($od_pg) {
@@ -723,6 +725,7 @@ $result = sql_query($sql, false);
 
 // 주문정보 입력 오류시 결제 취소
 if(!$result) {
+    if (function_exists('redtoy_order_log')) redtoy_order_log($od_id, 'save_failed');
     if($tno) {
         $cancel_msg = '주문상태 변경 오류';
         switch($od_pg) {
@@ -755,6 +758,8 @@ if(!$result) {
 
     die('<p>고객님의 주문 정보를 처리하는 중 오류가 발생해서 주문이 완료되지 않았습니다.</p><p>'.strtoupper($od_pg).'를 이용한 전자결제(신용카드, 계좌이체, 가상계좌 등)은 자동 취소되었습니다.');
 }
+
+if (function_exists('redtoy_order_log')) redtoy_order_log($od_id, 'order_saved');
 
 // 회원이면서 포인트를 사용했다면 포인트 테이블에 사용을 추가
 if ($is_member && $od_receipt_point)
@@ -986,6 +991,7 @@ if($is_member) {
 }
 
 include_once(G5_SHOP_PATH.'/orderalimtalk.inc.php'); // wetoz : 알림톡연동
+if (function_exists('redtoy_order_log')) redtoy_order_log($od_id, 'completed');
 
 $is_noti_pay = isset($is_noti_pay) ? $is_noti_pay : false;
 

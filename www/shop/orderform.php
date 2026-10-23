@@ -31,6 +31,7 @@ if (function_exists('before_check_cart_price')) {
 // 새로운 주문번호 생성
 $od_id = get_uniqodid();
 set_session('ss_order_id', $od_id);
+if (function_exists('redtoy_order_log_entered')) redtoy_order_log_entered($od_id, $tmp_cart_id);
 $s_cart_id = $tmp_cart_id;
 if($default['de_pg_service'] == 'inicis' || $default['de_inicis_lpay_use'] || $default['de_inicis_kakaopay_use'])
     set_session('ss_order_inicis_id', $od_id);
