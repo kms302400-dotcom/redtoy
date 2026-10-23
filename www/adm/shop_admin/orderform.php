@@ -441,7 +441,7 @@ add_javascript(G5_POSTCODE_JS, 0);    //다음 주소 js
     <h2 class="h2_frm">결제상세정보</h2>
     <?php echo $pg_anchor; ?>
 
-    <form id="redtoy_bank_receipt_form" action="./orderformreceiptupdate.php" method="post">
+    <form id="redtoy_bank_receipt_form" action="./orderformreceiptupdate.php" method="post" onsubmit="return confirm('입금처리 시 카톡알림이 발송됩니다. 입금처리할까요?');">
         <input type="hidden" name="od_id" value="<?php echo $od_id; ?>">
         <input type="hidden" name="receipt_action" value="confirm_bank">
     </form>
