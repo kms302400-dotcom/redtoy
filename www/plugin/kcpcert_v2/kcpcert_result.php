@@ -87,6 +87,10 @@ if (!$phone_no || !$user_name || !$birth_day) {
     alert_close('정상적인 인증 결과가 아닙니다. 올바른 방법으로 이용해 주세요.');
 }
 
+// Verified provider success; do not count callback retries or cookie/session restores.
+require_once G5_LIB_PATH.'/redtoy_cert_statistics.lib.php';
+redtoy_cert_record_success($reg_cert_key);
+
 $phone_no = hyphen_hp_number($phone_no);
 $mb_dupinfo = str_replace(' ', '+', $ci ? $ci : $di);
 

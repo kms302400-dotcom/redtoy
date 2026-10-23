@@ -1,0 +1,11 @@
+-- Apply separately BEFORE deploying PHP. Match the actual G5_TABLE_PREFIX.
+-- If this table already exists, inspect it; do not overwrite it or its data.
+CREATE TABLE `g5_redtoy_cert_success` (
+  `event_key` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `succeeded_at` DATETIME NOT NULL COMMENT 'Asia/Seoul',
+  PRIMARY KEY (`event_key`),
+  KEY `succeeded_at` (`succeeded_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=ascii;
+
+SHOW INDEX FROM `g5_redtoy_cert_success`;
+SELECT COUNT(*) AS recorded_successes FROM `g5_redtoy_cert_success`;

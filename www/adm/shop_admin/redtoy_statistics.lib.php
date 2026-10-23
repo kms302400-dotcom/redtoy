@@ -1,5 +1,6 @@
 <?php
 if (!defined('_GNUBOARD_')) exit;
+require_once dirname(__DIR__, 2).'/lib/redtoy_cert_statistics.lib.php';
 
 function redtoy_statistics_cancel_event_table()
 {
@@ -80,6 +81,7 @@ function redtoy_statistics_empty_row($date)
     return array(
         'date' => $date,
         'visits' => 0,
+        'certifications' => 0,
         'joins' => 0,
         'first_count' => 0,
         'repeat_count' => 0,
@@ -115,6 +117,13 @@ function redtoy_statistics_daily($from_date, $to_date)
     $from_time = $from_sql.' 00:00:00';
     $to_exclusive = date('Y-m-d 00:00:00', strtotime($to_date.' +1 day'));
     $to_exclusive_sql = sql_real_escape_string($to_exclusive);
+
+    $certifications = redtoy_cert_success_daily($from_time, $to_exclusive);
+    if ($certifications !== null) {
+        foreach ($certifications as $date => $count) {
+            if (isset($rows[$date])) $rows[$date]['certifications'] = $count;
+        }
+    }
 
     $result = sql_query(" select vs_date, vs_count
                             from {$g5['visit_sum_table']}
@@ -237,5 +246,6 @@ function redtoy_statistics_daily($from_date, $to_date)
     return array(
         'rows' => $rows,
         'cancel_event_table_ready' => $event_table_ready,
+        'cert_success_ready' => $certifications !== null,
     );
 }

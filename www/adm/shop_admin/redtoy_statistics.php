@@ -63,10 +63,17 @@ include_once(G5_PLUGIN_PATH.'/jquery-ui/datepicker.php');
 ?>
 
 <div class="local_desc01 local_desc">
+    <p>인증건수는 집계 기능 적용 이후 KCP 본인인증에 성공한 거래 건수입니다. 같은 거래의 재전송은 제외하며, 같은 사람이 새로 인증하면 각각 집계합니다. 과거 인증 이력은 소급 집계하지 않습니다.</p>
     <p>결제는 한국시간의 결제일시(od_receipt_time) 기준이며, 테스트·전체취소·완전환불 주문은 제외합니다. 결제금액은 입금액에서 환불액을 뺀 순액입니다.</p>
     <p>포인트만 결제한 정상 주문은 결제건수와 포인트 사용금액에는 포함되지만 실결제금액은 0원입니다.</p>
     <p>취소건수는 취소 이벤트 처리 건수이며, 취소금액은 환불액이 있으면 환불액, 없으면 취소상품액입니다. 과거 취소는 발생일을 복원하지 않고 결제일의 순결제금액에만 소급 반영됩니다.</p>
 </div>
+
+<?php if (!$statistics['cert_success_ready']) { ?>
+<div class="local_desc02 local_desc">
+    <p><strong>인증건수를 조회할 수 없습니다.</strong> 인증 통계 테이블 적용 여부와 DB 상태를 확인해 주세요. 인증건수는 '-'로 표시합니다.</p>
+</div>
+<?php } ?>
 
 <?php if (!$statistics['cancel_event_table_ready']) { ?>
 <div class="local_desc02 local_desc">
@@ -94,6 +101,7 @@ include_once(G5_PLUGIN_PATH.'/jquery-ui/datepicker.php');
             <tr>
                 <th scope="col" rowspan="2">일자</th>
                 <th scope="col" rowspan="2">접속수</th>
+                <th scope="col" rowspan="2">인증건수</th>
                 <th scope="col" rowspan="2">회원가입수</th>
                 <th scope="col" rowspan="2">가입률</th>
                 <th scope="colgroup" colspan="4">결제건수</th>
@@ -126,6 +134,7 @@ include_once(G5_PLUGIN_PATH.'/jquery-ui/datepicker.php');
             <tr>
                 <td class="stat-date<?php echo $date_class; ?>"><?php echo $row['date']; ?> (<?php echo $week_names[$week_number]; ?>)</td>
                 <td><?php echo number_format($row['visits']); ?></td>
+                <td><?php echo $statistics['cert_success_ready'] ? number_format($row['certifications']) : '-'; ?></td>
                 <td><?php echo number_format($row['joins']); ?></td>
                 <td><?php echo $join_rate === null ? '-' : number_format($join_rate, 1).'%'; ?></td>
                 <td><?php echo number_format($row['first_count']); ?></td>
@@ -148,6 +157,7 @@ include_once(G5_PLUGIN_PATH.'/jquery-ui/datepicker.php');
             <tr>
                 <td class="stat-date">합계</td>
                 <td><?php echo number_format($totals['visits']); ?></td>
+                <td><?php echo $statistics['cert_success_ready'] ? number_format($totals['certifications']) : '-'; ?></td>
                 <td><?php echo number_format($totals['joins']); ?></td>
                 <td><?php echo $totals['visits'] > 0 ? number_format(($totals['joins'] / $totals['visits']) * 100, 1).'%' : '-'; ?></td>
                 <td><?php echo number_format($totals['first_count']); ?></td>
