@@ -32,6 +32,13 @@ FAKE;
     $result=redtoy_cancel_pg($plan);
     verify_phone_transport($result['ok']===true,'real adapter sends legacy semicolon-delimited SClient argument');
     verify_phone_transport($result['tid']===str_repeat('2',18),'successful phone response matches original transaction');
+    $spaced=" Result = 0 \r\n TID = 222222222222222222 \r\n Date = 20260102120000 \r\n";
+    verify_phone_transport(redtoy_cancel_phone_result(redtoy_cancel_phone_response($spaced),$plan)['ok'],
+        'vendor-style padded keys and values accepted without weakening transaction checks');
+    verify_phone_transport(!redtoy_cancel_phone_result(redtoy_cancel_phone_response('Result=0&Result=0&TID=222222222222222222&Date=20260102120000'),$plan)['ok'],
+        'duplicate result fields remain unverified');
+    verify_phone_transport(redtoy_cancel_phone_result(['Result'=>'1234'],$plan)['code']==='phone_result_1234',
+        'numeric vendor failure code retained without free-text data');
     $r=['Result'=>'0','TID'=>str_repeat('2',18),'Date'=>'20260102120000'];
     verify_phone_transport(redtoy_cancel_phone_result($r,$plan)['ok'],'valid response accepted');
     foreach (['Result'=>'9999','TID'=>str_repeat('3',18),'Date'=>'invalid'] as $key=>$value) {

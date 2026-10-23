@@ -31,9 +31,26 @@ function redtoy_cancel_card_result($r,$plan)
     if (isset($r['O_TID']) && $r['O_TID']!==$plan['base']['order']['od_tno']) return $bad;
     return array('ok'=>true,'code'=>'0000','tid'=>$r['TID']);
 }
+// Match the vendor Parsor's trimming of names/values without retaining free-text errors.
+function redtoy_cancel_phone_response($raw)
+{
+    $out=array();
+    foreach (preg_split('/[&\r\n]+/',trim($raw)) as $part) {
+        $pair=explode('=',$part,2);
+        if (count($pair)!==2) continue;
+        $key=trim(urldecode($pair[0]));
+        if (!in_array($key,array('Result','TID','Date'),true)) continue;
+        if (isset($out[$key])) return array();
+        $out[$key]=trim(urldecode($pair[1]));
+    }
+    return $out;
+}
 function redtoy_cancel_phone_result($r,$plan)
 {
-    if (!isset($r['Result'],$r['TID'],$r['Date']) || $r['Result']!=='0' || $r['TID']!==$plan['base']['order']['od_tno'] || !preg_match('/^[0-9]{14}$/D',$r['Date'])) return array('ok'=>false,'code'=>'unverified_phone_response','tid'=>'');
+    if (!isset($r['Result']) || !preg_match('/^[0-9]{1,4}$/D',$r['Result'])) return array('ok'=>false,'code'=>'phone_result_invalid','tid'=>'');
+    if ($r['Result']!=='0') return array('ok'=>false,'code'=>'phone_result_'.$r['Result'],'tid'=>'');
+    if (!isset($r['TID']) || $r['TID']!==$plan['base']['order']['od_tno']) return array('ok'=>false,'code'=>'phone_tid_mismatch','tid'=>'');
+    if (!isset($r['Date']) || !preg_match('/^[0-9]{14}$/D',$r['Date'])) return array('ok'=>false,'code'=>'phone_date_invalid','tid'=>'');
     return array('ok'=>true,'code'=>'0','tid'=>$r['TID']);
 }
 function redtoy_cancel_pg($plan)
@@ -68,6 +85,6 @@ function redtoy_cancel_pg($plan)
     } while (true);
     $raw.=stream_get_contents($pipes[1]); fclose($pipes[1]); proc_close($proc);
     if ($state['running'] || strlen($raw)>65536 || $state['exitcode']!==0) return array('ok'=>false,'code'=>'transport_unknown','tid'=>'');
-    parse_str(str_replace(array("\r","\n"),'&',trim($raw)),$response);
+    $response=redtoy_cancel_phone_response($raw);
     return redtoy_cancel_phone_result($response,$plan);
 }

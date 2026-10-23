@@ -98,7 +98,23 @@ try {
     reject_cancel(function()use($ids,$p,$op){redtoy_cancel_execute('unknown',$ids,$p['fingerprint'],$op,'admin',function($p){global $calls;$calls++;return array('ok'=>false,'code'=>'transport_unknown','tid'=>'');});},'pg_review_required');
     check_cancel(redtoy_cancel_order('unknown')===$before && redtoy_cancel_carts('unknown')[0]['ct_status']==='입금','timeout leaves original business state unchanged');
     check_cancel(redtoy_cancel_pending('unknown')['state']==='review','unknown outcome durably blocks retries');
+    check_cancel(redtoy_cancel_one('select result_code from '.redtoy_cancel_table('journal')." where od_id='unknown'")['result_code']==='transport_unknown','specific PG failure reason survives outer catch');
     reject_cancel(function()use($ids){redtoy_cancel_quote('unknown',$ids,G5_TIME_YMDHIS);},'reconciliation_required');check_cancel($calls===$count+1,'unknown PG outcome called only once');
+    // A merchant-confirmed phone refund can be applied locally without another PG call.
+    $ids=fixture_cancel('phone_recovery',true,0,false);
+    redtoy_cancel_query("update cart set ct_stock_use=0 where od_id='phone_recovery'");
+    $p=redtoy_cancel_quote('phone_recovery',$ids,G5_TIME_YMDHIS);$op=bin2hex(random_bytes(16));
+    reject_cancel(function()use($ids,$p,$op){redtoy_cancel_execute('phone_recovery',$ids,$p['fingerprint'],$op,'admin',function($p){global $calls;$calls++;return array('ok'=>false,'code'=>'unverified_phone_response','tid'=>'');});},'pg_review_required');
+    $count=$calls;
+    redtoy_cancel_journal($op,'applying','operator_confirmed');
+    redtoy_cancel_apply($p,$op);
+    redtoy_cancel_journal($op,'done','operator_confirmed');
+    $recovered=redtoy_cancel_order('phone_recovery');
+    check_cancel($calls===$count && $recovered['od_status']==='취소' && (int)$recovered['od_refund_price']===$p['cash'],'merchant-confirmed phone recovery updates header/refund without PG');
+    foreach(redtoy_cancel_carts('phone_recovery') as $ct) check_cancel($ct['ct_status']==='취소','merchant-confirmed phone recovery updates every product');
+    check_cancel(!redtoy_cancel_pending('phone_recovery'),'completed recovery clears hold while retaining journal');
+    redtoy_cancel_execute('phone_recovery',$ids,'unused',$op,'admin','success_cancel');
+    check_cancel($calls===$count,'recovered operation cannot resend PG');
     $ids=fixture_cancel('changed');$p=redtoy_cancel_quote('changed',$ids,G5_TIME_YMDHIS);redtoy_cancel_query("update cart set ct_qty=2 where od_id='changed' and it_id='A'");$count=$calls;
     reject_cancel(function()use($ids,$p){redtoy_cancel_execute('changed',$ids,$p['fingerprint'],bin2hex(random_bytes(16)),'admin','success_cancel');},'amount_reconciliation_required');check_cancel($count===$calls,'stale quote cannot reach PG');
     $ids=fixture_cancel('foreign');reject_cancel(function()use($ids){redtoy_cancel_quote('foreign',array(999999),G5_TIME_YMDHIS);},'invalid_selection');

@@ -291,7 +291,7 @@ function redtoy_cancel_execute($id,$ids,$expected,$op,$actor,$transport=null)
         return 'done';
     } catch (Throwable $e) {
         if ($transaction) { try { redtoy_cancel_query('ROLLBACK'); } catch (Throwable $ignored) {} }
-        if ($inserted) { try { redtoy_cancel_journal($op,'review',in_array($e->getMessage(),array('pg_review_required','database_failure','order_changed_after_pg','point_write_failed','point_balance_failed','stock_write_failed','order_write_failed','cart_write_failed'),true)?$e->getMessage():'reconciliation_required'); } catch (Throwable $ignored) {} }
+        if ($inserted && $e->getMessage()!=='pg_review_required') { try { redtoy_cancel_journal($op,'review',in_array($e->getMessage(),array('pg_review_required','database_failure','order_changed_after_pg','point_write_failed','point_balance_failed','stock_write_failed','order_write_failed','cart_write_failed'),true)?$e->getMessage():'reconciliation_required'); } catch (Throwable $ignored) {} }
         throw $e;
     } finally { redtoy_cancel_unlock($locks); }
 }
