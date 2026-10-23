@@ -57,7 +57,7 @@ function redtoy_cancel_pg($plan)
         return redtoy_cancel_card_result($response,$plan);
     }
     $fields=array('ID'=>getenv('REDTOY_DANAL_PHONE_ID'),'PWD'=>getenv('REDTOY_DANAL_PHONE_PASSWORD'),'TID'=>$plan['base']['order']['od_tno'],'Command'=>'BILL_CANCEL','OUTPUTOPTION'=>'3');
-    $proc=proc_open(array(getenv('REDTOY_DANAL_PHONE_BINARY'),http_build_query($fields,'','&',PHP_QUERY_RFC1738)),array(0=>array('file','/dev/null','r'),1=>array('pipe','w'),2=>array('file','/dev/null','w')),$pipes);
+    $proc=proc_open(array(getenv('REDTOY_DANAL_PHONE_BINARY'),http_build_query($fields,'',';',PHP_QUERY_RFC1738)),array(0=>array('file','/dev/null','r'),1=>array('pipe','w'),2=>array('file','/dev/null','w')),$pipes);
     if (!is_resource($proc)) return array('ok'=>false,'code'=>'transport_unknown','tid'=>'');
     stream_set_blocking($pipes[1],false); $raw=''; $deadline=microtime(true)+20; $state=null;
     do {
