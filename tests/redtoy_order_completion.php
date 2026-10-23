@@ -101,6 +101,14 @@ try {
         verify_completion(in_array('laterwithdrawn',redtoy_completion_recovery_ids(100)),'active member initially recoverable');
         redtoy_completion_query("update members set mb_leave_date='20261023' where mb_id='later_left'");
         verify_completion(redtoy_completion_pay('laterwithdrawn')['points']===0 && !in_array('laterwithdrawn',redtoy_completion_recovery_ids(100)),'withdrawal between completion and payout rechecked');
+        completion_fixture_order('cardpaid',array(array('입금','2000-01-01 00:00:00')),'customer','입금');
+        verify_completion(redtoy_completion_pay('cardpaid')['points']===0,'paid card/phone order cannot earn before shipping');
+        redtoy_completion_query("update orders set od_status='배송' where od_id='cardpaid'");
+        redtoy_completion_query("update cart set ct_status='배송' where od_id='cardpaid'");
+        verify_completion(redtoy_completion_pay('cardpaid')['points']===0,'shipping alone cannot earn points');
+        verify_completion(redtoy_completion_apply('cardpaid',$now,7)==='completed','paid order completes after last item shipping threshold');
+        verify_completion(redtoy_completion_pay('cardpaid')['points']===200,'payment deferred credit issued at completion');
+        verify_completion(redtoy_completion_pay('cardpaid')['points']===0,'deferred credit issued once');
         completion_fixture_order('disabled',array(array('배송','2000-01-01 00:00:00')));redtoy_completion_apply('disabled',$now,7);
         $config['cf_use_point']=0;verify_completion(redtoy_completion_pay('disabled')['reason']==='points_disabled','disabled points remain recoverable');$config['cf_use_point']=1;
         verify_completion(in_array('disabled',redtoy_completion_recovery_ids(100)),'reenabling can retry');redtoy_completion_pay('disabled');

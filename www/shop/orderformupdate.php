@@ -546,7 +546,6 @@ if ($default['de_pg_service'] == "danal") {
         sql_query($sql);
     }
     
-    $i_with_point_price = $i_price;
     $i_price = $i_price + $i_send_cost + $i_send_cost2 - $i_temp_point - $i_send_coupon;
     $order_price = $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point;
 
@@ -587,7 +586,6 @@ if ($default['de_pg_service'] == "danal") {
         if($od_misu == 0)
             $od_status      = '입금';
             
-        //insert_point($member['mb_id'], $i_with_point_price * 0.05, "주문번호 $od_id 결제", '@member', $od_id, '상품구입');
     }
     else if ($od_settle_case == "card")
     {
@@ -601,7 +599,6 @@ if ($default['de_pg_service'] == "danal") {
         if($od_misu == 0)
             $od_status      = '입금';
             
-        insert_point($member['mb_id'], $i_with_point_price * 0.05, "주문번호 $od_id 결제", '@member', $od_id, '상품구입');
     }
     else if ($od_settle_case == "naver")
     {
