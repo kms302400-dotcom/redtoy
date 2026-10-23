@@ -64,8 +64,12 @@ function redtoy_completion_point_plan($order, $carts)
     $plan = array('reason'=>'no_points', 'points'=>0, 'rows'=>array());
     $mb = redtoy_completion_escape($order['mb_id']);
     $id = redtoy_completion_escape($order['od_id']);
-    if ($mb === '' || !redtoy_completion_query('select mb_id from '.redtoy_completion_table('member_table')." where mb_id='$mb'")->fetch_assoc()) {
+    $member = $mb === '' ? null : redtoy_completion_query('select mb_id,mb_leave_date from '.redtoy_completion_table('member_table')." where mb_id='$mb'")->fetch_assoc();
+    if (!$member) {
         $plan['reason']='no_member'; return $plan;
+    }
+    if (trim((string)$member['mb_leave_date']) !== '') {
+        $plan['reason']='withdrawn_member'; return $plan;
     }
     $points = redtoy_completion_table('point_table');
     if (redtoy_completion_query("select po_id from $points where mb_id='$mb' and po_rel_table='@member' and po_rel_id='$id' and po_rel_action='상품구입' limit 1")->fetch_assoc()) {
@@ -173,7 +177,8 @@ function redtoy_completion_recovery_ids($limit)
     $m=redtoy_completion_table('member_table'); $p=redtoy_completion_table('point_table');
     $marker=redtoy_completion_escape(redtoy_completion_marker());
     $rows=redtoy_completion_query("select od.od_id from $o od join $m mb on mb.mb_id=od.mb_id
-        where od.od_status='완료' and locate('$marker',coalesce(od.od_mod_history,''))>0
+        where trim(coalesce(mb.mb_leave_date,''))=''
+        and od.od_status='완료' and locate('$marker',coalesce(od.od_mod_history,''))>0
         and not exists(select 1 from $p po where po.mb_id=od.mb_id and po.po_rel_table='@member' and po.po_rel_id=od.od_id and po.po_rel_action='상품구입')
         and exists(select 1 from $c ct where ct.od_id=od.od_id and ct.ct_status='완료' and ct.ct_point>0 and ct.ct_qty>0
           and not exists(select 1 from $p po where po.mb_id=od.mb_id and po.po_rel_table='@delivery' and po.po_rel_id=od.mb_id and po.po_rel_action=concat(od.od_id,',',ct.ct_id)))

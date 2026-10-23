@@ -39,11 +39,11 @@ try {
     foreach(array('InnoDB','MyISAM') as $engine) {
         $redtoy_completion_db->query("create table orders(od_id varchar(64) primary key,mb_id varchar(20),od_status varchar(20),od_time datetime,od_invoice_time datetime,od_mod_history text) engine=$engine");
         $redtoy_completion_db->query("create table cart(ct_id int primary key auto_increment,od_id varchar(64),it_id varchar(20),ct_status varchar(20),ct_invoice_time varchar(19),ct_point int,ct_qty int,ct_point_use int, key(od_id)) engine=$engine");
-        $redtoy_completion_db->query("create table members(mb_id varchar(20) primary key,mb_point int default 0) engine=$engine");
+        $redtoy_completion_db->query("create table members(mb_id varchar(20) primary key,mb_point int default 0,mb_leave_date varchar(8) default '') engine=$engine");
         $redtoy_completion_db->query("create table points(po_id int primary key auto_increment,mb_id varchar(20),po_datetime datetime,po_content text,po_point int,po_use_point int,po_mb_point int,po_expired int,po_expire_date date,po_rel_table varchar(64),po_rel_id varchar(64),po_rel_action varchar(128)) engine=$engine");
         $redtoy_completion_db->query("create table items(it_id varchar(20) primary key,it_sum_qty int) engine=$engine");
         $redtoy_completion_db->query("create table config(cf_use_point int,cf_point_term int) engine=$engine");
-        redtoy_completion_query("insert into members values('customer',0);"."");
+        redtoy_completion_query("insert into members(mb_id,mb_point) values('customer',0);"."");
         redtoy_completion_query("insert into items values('item1',0)");redtoy_completion_query('insert into config values(1,0)');
         $now='2026-10-23 10:00:00';$order=array('od_status'=>'배송');
         $cart=function($status,$date){return array('ct_status'=>$status,'ct_invoice_time'=>$date);};
@@ -87,6 +87,20 @@ try {
         verify_completion(redtoy_completion_pay('flag')['points']===200,'flag without real history does not lose credit');
         completion_fixture_order('guest',array(array('배송','2000-01-01 00:00:00')),'');redtoy_completion_apply('guest',$now,7);
         verify_completion(redtoy_completion_pay('guest')['reason']==='no_member','guest completes without point award');
+        // Withdrawal retains a member row and can rename both member/order IDs.
+        redtoy_completion_query("insert into members values('left_261023_out',0,'20261023')");
+        completion_fixture_order('withdrawn',array(array('배송','2000-01-01 00:00:00')),'left_261023_out');
+        verify_completion(redtoy_completion_point_plan(redtoy_completion_order('withdrawn'),redtoy_completion_carts('withdrawn'))['reason']==='withdrawn_member','retained withdrawn member excluded from preview');
+        verify_completion(redtoy_completion_apply('withdrawn',$now,7)==='completed','withdrawn member order still completes');
+        verify_completion(redtoy_completion_pay('withdrawn')['reason']==='withdrawn_member','withdrawn member receives no points');
+        verify_completion(!in_array('withdrawn',redtoy_completion_recovery_ids(100)),'withdrawn order excluded from recovery');
+        verify_completion((int)redtoy_completion_query("select mb_point from members where mb_id='left_261023_out'")->fetch_assoc()['mb_point']===0 && (int)redtoy_completion_query("select count(*) as n from points where mb_id='left_261023_out'")->fetch_assoc()['n']===0,'withdrawn member ledger and balance unchanged');
+        redtoy_completion_query("insert into members(mb_id,mb_point) values('later_left',0)");
+        completion_fixture_order('laterwithdrawn',array(array('배송','2000-01-01 00:00:00')),'later_left');
+        redtoy_completion_apply('laterwithdrawn',$now,7);
+        verify_completion(in_array('laterwithdrawn',redtoy_completion_recovery_ids(100)),'active member initially recoverable');
+        redtoy_completion_query("update members set mb_leave_date='20261023' where mb_id='later_left'");
+        verify_completion(redtoy_completion_pay('laterwithdrawn')['points']===0 && !in_array('laterwithdrawn',redtoy_completion_recovery_ids(100)),'withdrawal between completion and payout rechecked');
         completion_fixture_order('disabled',array(array('배송','2000-01-01 00:00:00')));redtoy_completion_apply('disabled',$now,7);
         $config['cf_use_point']=0;verify_completion(redtoy_completion_pay('disabled')['reason']==='points_disabled','disabled points remain recoverable');$config['cf_use_point']=1;
         verify_completion(in_array('disabled',redtoy_completion_recovery_ids(100)),'reenabling can retry');redtoy_completion_pay('disabled');

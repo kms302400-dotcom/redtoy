@@ -50,7 +50,7 @@ try {
     $where=" where od_status='배송'";
     if ($from_time!=='') $where.=" and od_time>='".redtoy_completion_escape($from_time)."'";
     $orders=redtoy_completion_query('select od_id,mb_id,od_status,od_time,od_mod_history from '.redtoy_completion_table('g5_shop_order_table').$where.' order by od_id')->fetch_all(MYSQLI_ASSOC);
-    $stats=array('shipping_orders'=>count($orders),'eligible'=>0,'planned_completions'=>0,'completed'=>0,'failed'=>0,'skipped_lock'=>0,'skipped_changed'=>0,'already_paid_at_checkout'=>0,'no_member'=>0,'preview_payable_orders'=>0,'preview_payable_items'=>0,'preview_points'=>0,'paid_items'=>0,'paid_points'=>0,'recovery_pending'=>0,'preview_recovery_points'=>0,'preview_recovery_items'=>0);
+    $stats=array('shipping_orders'=>count($orders),'eligible'=>0,'planned_completions'=>0,'completed'=>0,'failed'=>0,'skipped_lock'=>0,'skipped_changed'=>0,'already_paid_at_checkout'=>0,'no_member'=>0,'withdrawn_member'=>0,'preview_payable_orders'=>0,'preview_payable_items'=>0,'preview_points'=>0,'paid_items'=>0,'paid_points'=>0,'recovery_pending'=>0,'preview_recovery_points'=>0,'preview_recovery_items'=>0);
     $reasons=array();
     foreach ($orders as $order) {
         $carts=redtoy_completion_carts($order['od_id']);
@@ -61,6 +61,7 @@ try {
         $plan=redtoy_completion_point_plan($order,$carts);
         if ($plan['reason']==='already_paid_at_checkout') $stats['already_paid_at_checkout']++;
         if ($plan['reason']==='no_member') $stats['no_member']++;
+        if ($plan['reason']==='withdrawn_member') $stats['withdrawn_member']++;
         if ($plan['reason']==='payable' && !empty($config['cf_use_point'])) {
             $stats['preview_payable_orders']++; $stats['preview_payable_items']+=count($plan['rows']); $stats['preview_points']+=$plan['points'];
         }
