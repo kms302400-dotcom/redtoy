@@ -94,6 +94,19 @@ try {
     $ids=fixture_cancel('phone',true);$p=redtoy_cancel_quote('phone',$ids,G5_TIME_YMDHIS);check_cancel($p['method']==='phone' && $p['full'],'phone full supported');
     reject_cancel(function()use($ids){redtoy_cancel_quote('phone',array($ids[0]),G5_TIME_YMDHIS);},'phone_partial_unsupported');
     run_cancel('phone',$ids);check_cancel(redtoy_cancel_order('phone')['od_status']==='취소','phone full applies');
+    foreach (array('','2026-01-02 12:00:00') as $index=>$date) {
+        $case='phone_date_'.$index; $ids=fixture_cancel($case,true,0,false);
+        list($p,$op)=run_cancel($case,$ids,function($p)use($date){
+            global $calls; $calls++;
+            $response=array('Result'=>'0','TID'=>$p['base']['order']['od_tno']);
+            if ($date!=='') $response['Date']=$date;
+            return redtoy_cancel_phone_result($response,$p);
+        });
+        $saved=redtoy_cancel_order($case);
+        check_cancel($saved['od_status']==='취소' && (int)$saved['od_refund_price']===$p['cash'],'successful phone response with absent/formatted Date automatically applies header/refund');
+        foreach(redtoy_cancel_carts($case) as $ct) check_cancel($ct['ct_status']==='취소','phone Date metadata cannot block automatic product cancellation');
+        check_cancel(redtoy_cancel_one('select state from '.redtoy_cancel_table('journal')." where op_id='$op'")['state']==='done','phone Date variation finishes journal normally');
+    }
     $ids=fixture_cancel('unknown');$before=redtoy_cancel_order('unknown');$count=$calls;$p=redtoy_cancel_quote('unknown',$ids,G5_TIME_YMDHIS);$op=bin2hex(random_bytes(16));
     reject_cancel(function()use($ids,$p,$op){redtoy_cancel_execute('unknown',$ids,$p['fingerprint'],$op,'admin',function($p){global $calls;$calls++;return array('ok'=>false,'code'=>'transport_unknown','tid'=>'');});},'pg_review_required');
     check_cancel(redtoy_cancel_order('unknown')===$before && redtoy_cancel_carts('unknown')[0]['ct_status']==='입금','timeout leaves original business state unchanged');

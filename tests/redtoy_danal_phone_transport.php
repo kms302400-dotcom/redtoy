@@ -9,7 +9,7 @@ function verify_phone_transport($ok,$message) {
     if (!$ok) throw new RuntimeException('FAIL: '.$message);
 }
 $fake=tempnam(sys_get_temp_dir(),'redtoy_fake_sclient_');
-$names=['REDTOY_PG_CANCEL_ENABLED','REDTOY_DANAL_PHONE_ID','REDTOY_DANAL_PHONE_PASSWORD','REDTOY_DANAL_PHONE_BINARY'];
+$names=['REDTOY_PG_CANCEL_ENABLED','REDTOY_DANAL_PHONE_ID','REDTOY_DANAL_PHONE_PASSWORD','REDTOY_DANAL_PHONE_BINARY','REDTOY_FAKE_PHONE_DATE'];
 $previous=[];
 foreach ($names as $name) $previous[$name]=getenv($name);
 try {
@@ -20,7 +20,10 @@ if (count($argv)!==2 || $argv[1]!==$expected) {
     echo 'Result=9999&ErrMsg=synthetic_wrong_wire_format';
     exit(0);
 }
-echo "Result=0\nTID=222222222222222222\nDate=20260102120000\n";
+echo "Result=0\nTID=222222222222222222\n";
+$date=getenv('REDTOY_FAKE_PHONE_DATE');
+if ($date===false) $date='20260102120000';
+if ($date!=='') echo 'Date='.$date."\n";
 FAKE;
     file_put_contents($fake,'#!'.PHP_BINARY."\n".$script);
     chmod($fake,0700);
@@ -41,9 +44,14 @@ FAKE;
         'numeric vendor failure code retained without free-text data');
     $r=['Result'=>'0','TID'=>str_repeat('2',18),'Date'=>'20260102120000'];
     verify_phone_transport(redtoy_cancel_phone_result($r,$plan)['ok'],'valid response accepted');
-    foreach (['Result'=>'9999','TID'=>str_repeat('3',18),'Date'=>'invalid'] as $key=>$value) {
+    foreach (['Result'=>'9999','TID'=>str_repeat('3',18)] as $key=>$value) {
         $bad=$r; $bad[$key]=$value;
         verify_phone_transport(!redtoy_cancel_phone_result($bad,$plan)['ok'],'invalid '.$key.' stays unverified');
+    }
+    foreach (['','20260102','2026-01-02 12:00:00'] as $date) {
+        putenv('REDTOY_FAKE_PHONE_DATE='.$date);
+        verify_phone_transport(redtoy_cancel_pg($plan)['ok'],
+            'successful matching-TID response reaches success despite absent or differently formatted timestamp');
     }
     putenv('REDTOY_PG_CANCEL_ENABLED=0');
     $blocked=false;

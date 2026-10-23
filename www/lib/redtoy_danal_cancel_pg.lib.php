@@ -50,7 +50,7 @@ function redtoy_cancel_phone_result($r,$plan)
     if (!isset($r['Result']) || !preg_match('/^[0-9]{1,4}$/D',$r['Result'])) return array('ok'=>false,'code'=>'phone_result_invalid','tid'=>'');
     if ($r['Result']!=='0') return array('ok'=>false,'code'=>'phone_result_'.$r['Result'],'tid'=>'');
     if (!isset($r['TID']) || $r['TID']!==$plan['base']['order']['od_tno']) return array('ok'=>false,'code'=>'phone_tid_mismatch','tid'=>'');
-    if (!isset($r['Date']) || !preg_match('/^[0-9]{14}$/D',$r['Date'])) return array('ok'=>false,'code'=>'phone_date_invalid','tid'=>'');
+    // Date is response metadata; Result=0 and the exact requested TID confirm the refund.
     return array('ok'=>true,'code'=>'0','tid'=>$r['TID']);
 }
 function redtoy_cancel_pg($plan)
