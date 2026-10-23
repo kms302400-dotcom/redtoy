@@ -24,6 +24,14 @@ function fixture_cancel($id,$phone=false,$used=10000,$coupons=true) {
     if($coupons) foreach(array('item'=>6000,'order'=>4000,'ship'=>1000) as $cp=>$amount)redtoy_cancel_query("insert into coupon_logs(cp_id,mb_id,od_id,cp_price) values('$cp','customer','$id',$amount)");
     return array_column(redtoy_cancel_carts($id),'ct_id');
 }
+$tg_cancel_calls=array(); $tg_cancel_fail=false;
+function redtoy_tg_cancel($id,$op) {
+    global $tg_cancel_calls,$tg_cancel_fail;
+    $state=redtoy_cancel_one('select state from '.redtoy_cancel_table('journal')." where op_id='$op'");
+    if (!$state || $state['state']!=='done') throw new RuntimeException('notification_before_done');
+    $tg_cancel_calls[]=array($id,$op);
+    if ($tg_cancel_fail) throw new RuntimeException('synthetic_notification_failure');
+}
 function success_cancel($p) {global $calls;$calls++;return array('ok'=>true,'code'=>'0000','tid'=>str_repeat('3',24));}
 function run_cancel($id,$ids,$mock='success_cancel',$op=null) {
     $p=redtoy_cancel_quote($id,$ids,G5_TIME_YMDHIS);$op=$op?:bin2hex(random_bytes(16));redtoy_cancel_execute($id,$ids,$p['fingerprint'],$op,'admin',$mock);return array($p,$op);
@@ -128,6 +136,12 @@ try {
     check_cancel(!redtoy_cancel_pending('phone_recovery'),'completed recovery clears hold while retaining journal');
     redtoy_cancel_execute('phone_recovery',$ids,'unused',$op,'admin','success_cancel');
     check_cancel($calls===$count,'recovered operation cannot resend PG');
+    $ids=fixture_cancel('notify_failure',true,0,false); $tg_cancel_fail=true;
+    list($p,$op)=run_cancel('notify_failure',$ids); $tg_cancel_fail=false;
+    check_cancel(redtoy_cancel_order('notify_failure')['od_status']==='취소','notification exception never fails successful refund');
+    check_cancel(redtoy_cancel_one('select state from '.redtoy_cancel_table('journal')." where op_id='$op'")['state']==='done','notification failure does not change completed journal to review');
+    $notices=count($tg_cancel_calls);redtoy_cancel_execute('notify_failure',$ids,'unused',$op,'admin','success_cancel');
+    check_cancel(count($tg_cancel_calls)===$notices,'duplicate completed request never invokes cancellation notification again');
     $ids=fixture_cancel('changed');$p=redtoy_cancel_quote('changed',$ids,G5_TIME_YMDHIS);redtoy_cancel_query("update cart set ct_qty=2 where od_id='changed' and it_id='A'");$count=$calls;
     reject_cancel(function()use($ids,$p){redtoy_cancel_execute('changed',$ids,$p['fingerprint'],bin2hex(random_bytes(16)),'admin','success_cancel');},'amount_reconciliation_required');check_cancel($count===$calls,'stale quote cannot reach PG');
     $ids=fixture_cancel('foreign');reject_cancel(function()use($ids){redtoy_cancel_quote('foreign',array(999999),G5_TIME_YMDHIS);},'invalid_selection');

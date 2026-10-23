@@ -1,0 +1,8 @@
+-- Existing installs only. Back up redtoy_telegram_config first; replace g5_ if necessary.
+-- Apply once BEFORE the new code. Do not rerun the initial review/Telegram migration.
+-- Preserves existing settings/token/Chat ID. New cancellation event follows global enabled.
+ALTER TABLE g5_redtoy_telegram_config
+  ADD COLUMN order_cancelled TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER order_paid;
+-- Verify: SHOW COLUMNS FROM g5_redtoy_telegram_config LIKE 'order_cancelled';
+-- Rollback: revert code first; leave this compatible column in place to preserve settings.
+-- No new index or changes to existing queue rows. Brief metadata lock on small config table.

@@ -38,6 +38,8 @@ if($od['od_cancel_price'] > 0 || $ct['od_count1'] != $ct['od_count2']) {
     alert("취소할 수 있는 주문이 아닙니다.", G5_SHOP_URL."/orderinquiryview.php?od_id=$od_id&amp;uid=$uid");
 }
 
+$redtoy_tg_cancel_before = function_exists('redtoy_tg_cancel_snapshot') ? redtoy_tg_cancel_snapshot($od_id) : false;
+
 // PG 결제 취소
 if($od['od_tno']) {
     switch($od['od_pg']) {
@@ -209,6 +211,11 @@ if ($od['od_receipt_point'] > 0)
 $re_od = sql_fetch(" select count(*) as cnt from {$g5['g5_shop_coupon_log_table']} where od_id = '$od_id' and mb_id = '{$member['mb_id']}' ");
 if($re_od['cnt']) {
     sql_query(" delete from {$g5['g5_shop_coupon_log_table']} where od_id = '{$od_id}' ");
+}
+
+if ($redtoy_tg_cancel_before) {
+    try { redtoy_tg_legacy_cancel($redtoy_tg_cancel_before); }
+    catch (Throwable $ignored) { error_log('redtoy_telegram: cancel_notification_failed'); }
 }
 
 goto_url(G5_SHOP_URL."/orderinquiryview.php?od_id=$od_id&amp;uid=$uid");

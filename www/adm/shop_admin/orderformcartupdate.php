@@ -18,6 +18,9 @@ if ($redtoy_statistics_before_order['od_pg'] === 'danal') {
 }
 
 
+$redtoy_tg_cancel_before = function_exists('redtoy_tg_cancel_snapshot') && isset($_POST['ct_status']) && $_POST['ct_status'] === '취소'
+    ? redtoy_tg_cancel_snapshot($od_id) : false;
+
 $ct_chk_count = isset($_POST['ct_chk']) ? count($_POST['ct_chk']) : 0;
 if(!$ct_chk_count)
     alert('처리할 자료를 하나 이상 선택해 주십시오.');
@@ -404,6 +407,12 @@ if (!$cancel_change && isset($_POST['ct_status']) && $_POST['ct_status'] === '�
 $qstr = "sort1=$sort1&amp;sort2=$sort2&amp;sel_field=$sel_field&amp;search=$search&amp;page=$page";
 
 $url = "./orderform.php?od_id=$od_id&amp;$qstr";
+
+// Queue only after saved cancellation and no reported PG failure.
+if ($redtoy_tg_cancel_before && !($pg_cancel == 1 && $pg_res_cd && $pg_res_msg)) {
+    try { redtoy_tg_legacy_cancel($redtoy_tg_cancel_before); }
+    catch (Throwable $ignored) { error_log('redtoy_telegram: cancel_notification_failed'); }
+}
 
 // 신용카드 취소 때 오류가 있으면 알림
 if($pg_cancel == 1 && $pg_res_cd && $pg_res_msg) {

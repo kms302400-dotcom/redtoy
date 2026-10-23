@@ -3,7 +3,7 @@ if (!defined('_GNUBOARD_')) exit;
 
 function redtoy_tg_events()
 {
-    return array('order_created'=>'주문 접수', 'order_paid'=>'입금 확인 / 결제 완료', 'qa_created'=>'1:1문의 접수', 'qa_answered'=>'1:1문의 답변 등록');
+    return array('order_created'=>'주문 접수', 'order_paid'=>'입금 확인 / 결제 완료', 'order_cancelled'=>'주문 취소', 'qa_created'=>'1:1문의 접수', 'qa_answered'=>'1:1문의 답변 등록');
 }
 
 // Never propagate a notification/storage failure to the business request or log SQL/secrets.
@@ -105,7 +105,7 @@ function redtoy_tg_schedule()
     register_shutdown_function('redtoy_tg_dispatch');
 }
 
-function redtoy_tg_enqueue($event, $id, $message, $test = false)
+function redtoy_tg_enqueue($event, $id, $message, $test = false, $occurrence = null)
 {
     try {
         $config = redtoy_tg_config();
@@ -113,7 +113,9 @@ function redtoy_tg_enqueue($event, $id, $message, $test = false)
         if (!$test && (!isset(redtoy_tg_events()[$event]) || empty($config[$event]))) return false;
         if ($test && $event !== 'test') return false;
         if (!preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', (string)$id)) return false;
-        $key = sql_real_escape_string($event.':'.$id);
+        if ($occurrence !== null && (!is_string($occurrence) || !preg_match('/^[a-zA-Z0-9_-]{1,64}$/D',$occurrence))) return false;
+        if ($event === 'order_cancelled' && $occurrence === null) return false;
+        $key = sql_real_escape_string($event.':'.($occurrence === null ? $id : $occurrence));
         $event = sql_real_escape_string($event);
         $id = sql_real_escape_string((string)$id);
         $message = sql_real_escape_string($message);
@@ -132,6 +134,12 @@ function redtoy_tg_enqueue($event, $id, $message, $test = false)
     }
 }
 
+function redtoy_tg_order_data($id)
+{
+    global $g5;
+    return redtoy_tg_row("select od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case,od_name,od_hp,od_tel,od_b_hp,od_b_tel,od_b_addr1,od_b_addr2,od_b_addr3 from {$g5['g5_shop_order_table']} where od_id='$id'");
+}
+
 // Called ONLY after the caller's order/cart writes and error paths have completed.
 function redtoy_tg_order($id, $created = false)
 {
@@ -139,7 +147,7 @@ function redtoy_tg_order($id, $created = false)
     try {
         if (!is_scalar($id) || !preg_match('/^[0-9]{1,32}$/D', (string)$id)) return;
         $id = sql_real_escape_string((string)$id);
-        $od = redtoy_tg_row("select od_id,od_status,od_misu,od_time,od_receipt_time,od_cart_price,od_send_cost,od_send_cost2,od_cart_coupon,od_coupon,od_send_coupon,od_receipt_point,od_receipt_price,od_settle_case,od_name,od_hp,od_tel,od_b_hp,od_b_tel,od_b_addr1,od_b_addr2,od_b_addr3 from {$g5['g5_shop_order_table']} where od_id='$id'");
+        $od = redtoy_tg_order_data($id);
         if (!$od) return;
         $cart = redtoy_tg_row("select it_name from {$g5['g5_shop_cart_table']} where od_id='$id' and ct_select=1 and ct_status<>'쇼핑' order by ct_id limit 1");
         if (!$cart) return;
@@ -149,7 +157,7 @@ function redtoy_tg_order($id, $created = false)
         if (redtoy_tg_paid($od)) $events[] = 'order_paid';
         foreach ($events as $event) {
             $amount = $event === 'order_paid' ? $od['od_receipt_price'] : max(0, $od['od_cart_price'] + $od['od_send_cost'] + $od['od_send_cost2'] - $od['od_cart_coupon'] - $od['od_coupon'] - $od['od_send_coupon'] - $od['od_receipt_point']);
-            $title = $event === 'order_paid' ? '🟢 [레드토이 결제완료 주문]' : '🟡 [레드토이 주문접수]';
+            $title = $event === 'order_paid' ? '[레드토이 결제완료 주문]' : '[레드토이 입금대기 주문]';
             $phone = trim($od['od_hp']) ?: (trim($od['od_tel']) ?: (trim($od['od_b_hp']) ?: trim($od['od_b_tel'])));
             // These explicitly requested operational fields may contain customer contact/address data.
             $text = $title."\n\n주문번호 : ".$id
@@ -163,6 +171,88 @@ function redtoy_tg_order($id, $created = false)
             redtoy_tg_enqueue($event, $id, $text);
         }
     } catch (Throwable $e) { error_log('redtoy_telegram: order_event_failed'); }
+}
+
+// Minimal snapshot used only around completed cancellation routes; never changes business data.
+function redtoy_tg_cancel_snapshot($id)
+{
+    global $g5;
+    try {
+        if (!is_scalar($id) || !preg_match('/^[0-9]{1,32}$/D', (string)$id)) return false;
+        $id = sql_real_escape_string((string)$id);
+        $order = redtoy_tg_order_data($id);
+        if (!$order) return false;
+        $result = redtoy_tg_query("select ct_id,it_id,it_name,ct_status from {$g5['g5_shop_cart_table']} where od_id='$id' order by ct_id");
+        if (!$result) return false;
+        $carts = array();
+        while ($row = sql_fetch_array($result)) $carts[] = $row;
+        return $carts ? array('order'=>$order,'carts'=>$carts) : false;
+    } catch (Throwable $e) { error_log('redtoy_telegram: cancel_snapshot_failed'); return false; }
+}
+
+function redtoy_tg_original_amount($order)
+{
+    return (float)$order['od_receipt_price'] > 0 ? $order['od_receipt_price']
+        : max(0, $order['od_cart_price'] + $order['od_send_cost'] + $order['od_send_cost2'] - $order['od_cart_coupon'] - $order['od_coupon'] - $order['od_send_coupon'] - $order['od_receipt_point']);
+}
+
+function redtoy_tg_cancel_message($order, $carts, $full, $amount)
+{
+    $products = array();
+    foreach ($carts as $cart) if (!isset($products[$cart['it_id']])) $products[$cart['it_id']] = redtoy_tg_clean($cart['it_name']);
+    if (!$products) return '';
+    $name = reset($products);
+    if ($full || count($products) > 1) $name .= ' 외 '.(count($products)-1).'건';
+    $phone = trim($order['od_hp']) ?: (trim($order['od_tel']) ?: (trim($order['od_b_hp']) ?: trim($order['od_b_tel'])));
+    return "[레드토이 주문취소 주문]\n\n주문번호 : ".$order['od_id']
+        ."\n취소구분 : ".($full ? '전체취소' : '부분취소')
+        ."\n상품명 : ".$name."\n결제금액 : ".number_format($amount).'원'
+        ."\n결제수단 : ".redtoy_tg_payment_name($order['od_settle_case'])
+        ."\n고객명 : ".redtoy_tg_clean($order['od_name'], false)
+        ."\n연락처 : ".redtoy_tg_clean($phone, false)
+        ."\n\n관리자 주문 확인 :\n".G5_ADMIN_URL.'/shop_admin/orderform.php?od_id='.rawurlencode($order['od_id']);
+}
+
+// Each completed Danal operation has its own deduplication key, including successive partials.
+function redtoy_tg_cancel($id, $operation)
+{
+    try {
+        if (!is_scalar($id) || !preg_match('/^[0-9]{1,32}$/D',(string)$id) || !is_string($operation) || !preg_match('/^[a-f0-9]{32}$/D',$operation)) return false;
+        $id = sql_real_escape_string((string)$id);
+        $journal = redtoy_tg_row('select state,plan_json from '.G5_TABLE_PREFIX."redtoy_cancel where od_id='$id' and op_id='$operation' and state='done'");
+        if (!$journal) return false;
+        $plan = json_decode($journal['plan_json'], true);
+        if (!is_array($plan) || !isset($plan['ids'],$plan['full'],$plan['base']['order']) || (string)$plan['base']['order']['od_id'] !== (string)$id) return false;
+        $snapshot = redtoy_tg_cancel_snapshot($id);
+        if (!$snapshot) return false;
+        $selected = array(); $ids = array_map('intval',$plan['ids']);
+        foreach ($snapshot['carts'] as $cart) if (in_array((int)$cart['ct_id'],$ids,true) && $cart['ct_status']==='취소') $selected[] = $cart;
+        if (!$ids || count($selected)!==count($ids)) return false;
+        $text = redtoy_tg_cancel_message($snapshot['order'],$selected,(bool)$plan['full'],redtoy_tg_original_amount($plan['base']['order']));
+        return $text !== '' && redtoy_tg_enqueue('order_cancelled',$id,$text,false,$operation);
+    } catch (Throwable $e) { error_log('redtoy_telegram: cancel_event_failed'); return false; }
+}
+
+// Legacy/unpaid bank cancellation: compare saved carts, rather than trusting posted selections.
+function redtoy_tg_legacy_cancel($before)
+{
+    try {
+        if (!$before || !isset($before['order']['od_id'],$before['carts'])) return false;
+        $id = (string)$before['order']['od_id'];
+        $after = redtoy_tg_cancel_snapshot($id);
+        if (!$after) return false;
+        $previous = array();
+        foreach ($before['carts'] as $cart) $previous[(int)$cart['ct_id']] = $cart;
+        $selected = array(); $full = true;
+        foreach ($after['carts'] as $cart) {
+            if (in_array($cart['ct_status'],array('주문','입금','준비','배송','완료'),true)) $full = false;
+            if ($cart['ct_status']==='취소' && isset($previous[(int)$cart['ct_id']]) && $previous[(int)$cart['ct_id']]['ct_status']!=='취소') $selected[] = $cart;
+        }
+        if (!$selected) return false;
+        $event = hash('sha256',json_encode(array($id,$selected),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+        $text = redtoy_tg_cancel_message($before['order'],$selected,$full,redtoy_tg_original_amount($before['order']));
+        return $text !== '' && redtoy_tg_enqueue('order_cancelled',$id,$text,false,$event);
+    } catch (Throwable $e) { error_log('redtoy_telegram: legacy_cancel_event_failed'); return false; }
 }
 
 function redtoy_tg_qa($id, $write, $w, $qaconfig, $answer_id = null)
@@ -205,11 +295,19 @@ function redtoy_tg_classify($errno, $http, $body)
 function redtoy_tg_payload($chat, $message)
 {
     $payload = array('chat_id'=>$chat, 'text'=>$message, 'disable_web_page_preview'=>'true');
-    if (strpos($message, "🟢 [레드토이 결제완료 주문]\n") === 0 || strpos($message, "🟡 [레드토이 주문접수]\n") === 0) {
-        $lines = explode("\n", $message, 2);
-        $heading = explode(' ', $lines[0], 2);
+    $lines = explode("\n", $message, 2);
+    $title = preg_replace('/^(?:🟢|🟡|🔴|\?{4}) /u', '', $lines[0]);
+    $titles = array('[레드토이 결제완료 주문]'=>array('🟢',true),
+        '[레드토이 입금대기 주문]'=>array('🟡',true),
+        '[레드토이 주문접수]'=>array('🟡',true),
+        '[레드토이 주문취소 주문]'=>array('🔴',false));
+    if (isset($titles[$title],$lines[1])) {
+        if ($title === '[레드토이 주문접수]') $title = '[레드토이 입금대기 주문]';
+        $style = $titles[$title];
         $payload['parse_mode'] = 'HTML';
-        $payload['text'] = $heading[0].' <b>'.htmlspecialchars($heading[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')."</b>\n"
+        $heading = htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        // Emoji is added here, after the utf8 (three-byte) DB connection has been bypassed.
+        $payload['text'] = $style[0].' '.($style[1] ? '<b>'.$heading.'</b>' : $heading)."\n"
             .htmlspecialchars($lines[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
     return $payload;

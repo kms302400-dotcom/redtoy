@@ -288,6 +288,8 @@ function redtoy_cancel_execute($id,$ids,$expected,$op,$actor,$transport=null)
         redtoy_cancel_apply($plan,$op);
         redtoy_cancel_journal($op,'done',$result['code'],$result['tid']);
         if ($transaction) { redtoy_cancel_query('COMMIT'); $transaction=false; }
+        try { if (function_exists('redtoy_tg_cancel')) redtoy_tg_cancel($id,$op); }
+        catch (Throwable $ignored) { error_log('redtoy_telegram: cancel_notification_failed'); }
         return 'done';
     } catch (Throwable $e) {
         if ($transaction) { try { redtoy_cancel_query('ROLLBACK'); } catch (Throwable $ignored) {} }
