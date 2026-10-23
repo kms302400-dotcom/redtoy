@@ -413,7 +413,7 @@ add_javascript(G5_POSTCODE_JS, 0);    //다음 주소 js
         <tr>
             <th scope="col">주문번호</th>
             <th scope="col">결제방법</th>
-            <th scope="col">주문총액</th>
+            <th scope="col">주문금액</th>
             <th scope="col">배송비</th>
             <th scope="col">포인트결제</th>
             <th scope="col">총결제액</th>
@@ -425,7 +425,7 @@ add_javascript(G5_POSTCODE_JS, 0);    //다음 주소 js
         <tr>
             <td><?php echo $od['od_id']; ?></td>
             <td class="td_paybybig"><?php echo $s_receipt_way; ?></td>
-            <td class="td_numbig td_numsum"><?php echo display_price($amount['order']); ?></td>
+            <td class="td_numbig td_numsum"><?php echo display_price($od['od_cart_price']); ?></td>
             <td class="td_numbig"><?php echo display_price($od['od_send_cost'] + $od['od_send_cost2']); ?></td>
             <td class="td_numbig"><?php echo display_point($od['od_receipt_point']); ?></td>
             <td class="td_numbig td_numincome"><?php echo number_format($amount['receipt']); ?>원</td>
