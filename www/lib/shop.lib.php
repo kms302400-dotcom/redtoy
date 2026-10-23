@@ -2532,6 +2532,7 @@ function exists_inicis_shop_order($oid, $pp=array(), $od_time='', $od_ip='')
 function save_order_point($ct_status="완료", $od_id='')
 {
     global $g5, $config;
+    require_once G5_LIB_PATH.'/redtoy_danal_cancel.lib.php';
 
     // 포인트 사용 중지 상태에서는 지급 완료로 표시하지 않는다.
     if (!$config['cf_use_point']) {
@@ -2560,6 +2561,7 @@ function save_order_point($ct_status="완료", $od_id='')
     for ($i=0; $row=sql_fetch_array($result); $i++) {
         // 회원 ID 를 얻는다.
         $od_row = sql_fetch("select od_id, mb_id, od_status from {$g5['g5_shop_order_table']} where od_id = '{$row['od_id']}' ");
+        if (redtoy_cancel_hold($od_row['od_id'],$g5['connect_db'])) continue;
         if ($od_row['od_status'] === '완료' && $od_row['mb_id'] && $row['ct_point'] > 0) { // 배송완료된 회원 주문이면서 포인트가 0보다 크다면
             $mb_id = sql_real_escape_string($od_row['mb_id']);
 

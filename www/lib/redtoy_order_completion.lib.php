@@ -1,5 +1,6 @@
 <?php
 if (!defined('_GNUBOARD_')) exit;
+require_once __DIR__.'/redtoy_danal_cancel.lib.php';
 
 // Pure eligibility check shared by the read-only preview and the actual runner.
 function redtoy_completion_evaluate($order, $carts, $now, $days = 7)
@@ -62,6 +63,8 @@ function redtoy_completion_carts($id)
 function redtoy_completion_point_plan($order, $carts)
 {
     $plan = array('reason'=>'no_points', 'points'=>0, 'rows'=>array());
+    global $redtoy_completion_db;
+    if (redtoy_cancel_hold($order['od_id'],$redtoy_completion_db)) { $plan['reason']='cancel_pending'; return $plan; }
     $mb = redtoy_completion_escape($order['mb_id']);
     $id = redtoy_completion_escape($order['od_id']);
     $member = $mb === '' ? null : redtoy_completion_query('select mb_id,mb_leave_date from '.redtoy_completion_table('member_table')." where mb_id='$mb'")->fetch_assoc();
@@ -111,6 +114,8 @@ function redtoy_completion_apply($id, $now, $days)
     $lock='redtoy_complete_order_'.$id;
     if (!redtoy_completion_lock($lock)) return 'locked';
     try {
+        global $redtoy_completion_db;
+        if (redtoy_cancel_hold($id,$redtoy_completion_db)) return 'changed';
         $order=redtoy_completion_order($id);
         if (!$order) return 'changed';
         $carts=redtoy_completion_carts($id);
@@ -175,9 +180,12 @@ function redtoy_completion_recovery_ids($limit)
 {
     $o=redtoy_completion_table('g5_shop_order_table'); $c=redtoy_completion_table('g5_shop_cart_table');
     $m=redtoy_completion_table('member_table'); $p=redtoy_completion_table('point_table');
+    global $redtoy_completion_db;
+    $cancelTable=redtoy_cancel_hold_table($redtoy_completion_db);
+    $cancelWhere=$cancelTable ? " and not exists(select 1 from $cancelTable rc where rc.od_id=od.od_id and rc.state<>'done')" : '';
     $marker=redtoy_completion_escape(redtoy_completion_marker());
     $rows=redtoy_completion_query("select od.od_id from $o od join $m mb on mb.mb_id=od.mb_id
-        where trim(coalesce(mb.mb_leave_date,''))=''
+        where trim(coalesce(mb.mb_leave_date,''))='' $cancelWhere
         and od.od_status='완료' and locate('$marker',coalesce(od.od_mod_history,''))>0
         and not exists(select 1 from $p po where po.mb_id=od.mb_id and po.po_rel_table='@member' and po.po_rel_id=od.od_id and po.po_rel_action='상품구입')
         and exists(select 1 from $c ct where ct.od_id=od.od_id and ct.ct_status='완료' and ct.ct_point>0 and ct.ct_qty>0

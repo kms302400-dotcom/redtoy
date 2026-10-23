@@ -45,6 +45,12 @@ $sql = " select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ";
 $od  = sql_fetch($sql);
 if(! (isset($od['od_id']) && $od['od_id']))
     alert('주문자료가 존재하지 않습니다.');
+if ($od['od_pg'] === 'danal') {
+    require_once G5_LIB_PATH.'/redtoy_danal_cancel.lib.php';
+    try { redtoy_cancel_guard_order($od_id); }
+    catch (Throwable $e) { alert('다날 취소 처리 중이거나 확인 필요 기록이 있습니다. 취소·환불 화면에서 확인해 주세요.'); }
+    $od = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+}
 $redtoy_statistics_before_order = $od;
 
 if ($posts['od_receipt_time']) {

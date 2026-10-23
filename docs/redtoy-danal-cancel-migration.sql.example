@@ -1,0 +1,18 @@
+-- Apply explicitly before application deployment. Replace g5_ only if the site uses another prefix.
+-- New audit table only. Existing orders, carts, points, coupons and their engines are untouched.
+CREATE TABLE g5_redtoy_cancel (
+    op_id char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    od_id varchar(64) NOT NULL,
+    actor_id varchar(255) NOT NULL,
+    state varchar(16) NOT NULL,
+    cash_amount bigint unsigned NOT NULL,
+    return_points bigint unsigned NOT NULL,
+    recover_points bigint unsigned NOT NULL,
+    plan_json mediumtext NOT NULL,
+    result_code varchar(40) NOT NULL DEFAULT '',
+    pg_cancel_tid varchar(32) NOT NULL DEFAULT '',
+    created_at datetime NOT NULL,
+    updated_at datetime NOT NULL,
+    PRIMARY KEY(op_id),
+    KEY order_state(od_id,state,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

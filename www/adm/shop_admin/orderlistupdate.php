@@ -43,6 +43,12 @@ for ($i=0; $i<$count_post_chk; $i++)
 
     $od = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
     if (!$od) continue;
+    if ($od['od_pg'] === 'danal') {
+        require_once G5_LIB_PATH.'/redtoy_danal_cancel.lib.php';
+        try { redtoy_cancel_guard_order($od_id); }
+        catch (Throwable $e) { alert('다날 취소 처리 중이거나 확인 필요 기록이 있는 주문입니다. 주문 상세에서 확인해 주세요.'); }
+        $od = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+    }
 
     //change_order_status($od['od_status'], $_POST['od_status'], $od);
     //echo $od_id . "<br>";

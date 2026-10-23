@@ -17,6 +17,7 @@ $dbname='redtoy_completion_test_'.bin2hex(random_bytes(6));
 $redtoy_completion_db->query("create database $dbname character set utf8mb4");
 $redtoy_completion_db->select_db($dbname);$redtoy_completion_db->set_charset('utf8mb4');
 $g5=array('connect_db'=>$redtoy_completion_db,'g5_shop_order_table'=>'orders','g5_shop_cart_table'=>'cart','member_table'=>'members','point_table'=>'points','config_table'=>'config','g5_shop_item_table'=>'items');
+define('G5_TABLE_PREFIX','g5_');
 $config=array('cf_use_point'=>1,'cf_point_term'=>0);$is_admin='';$checks=0;$fixture=null;
 function verify_completion($ok,$label) {global $checks;$checks++;if(!$ok)throw new RuntimeException('FAIL: '.$label);}
 function completion_fixture_order($id,$carts,$member='customer',$status='배송') {
@@ -133,9 +134,9 @@ try {
         // Execute the actual CLI against a synthetic web-root, not production settings.
         $fixture=sys_get_temp_dir().'/redtoy-completion-fixture-'.bin2hex(random_bytes(6));mkdir($fixture,0700);
         foreach(array('data','lib/Hook','adm/shop_admin') as $path)mkdir($fixture.'/'.$path,0700,true);
-        foreach(array('config.php','version.php','lib/common.lib.php','lib/pbkdf2.compat.php','lib/hook.lib.php','lib/get_data.lib.php','lib/Hook/hook.class.php','lib/Hook/hook.extends.class.php','lib/redtoy_order_completion.lib.php','adm/shop_admin/order_auto_complete.php') as $file)copy($root.'/'.$file,$fixture.'/'.$file);
+        foreach(array('config.php','version.php','lib/common.lib.php','lib/pbkdf2.compat.php','lib/hook.lib.php','lib/get_data.lib.php','lib/Hook/hook.class.php','lib/Hook/hook.extends.class.php','lib/redtoy_order_completion.lib.php','lib/redtoy_danal_cancel.lib.php','adm/shop_admin/order_auto_complete.php') as $file)copy($root.'/'.$file,$fixture.'/'.$file);
         $mapping=$g5;unset($mapping['connect_db']);
-        file_put_contents($fixture.'/data/dbconfig.php',"<?php define('G5_MYSQL_HOST','localhost');define('G5_MYSQL_USER','root');define('G5_MYSQL_PASSWORD','');define('G5_MYSQL_DB',".var_export($dbname,true).");\n\$g5=".var_export($mapping,true).';');
+        file_put_contents($fixture.'/data/dbconfig.php',"<?php define('G5_TABLE_PREFIX','g5_');define('G5_MYSQL_HOST','localhost');define('G5_MYSQL_USER','root');define('G5_MYSQL_PASSWORD','');define('G5_MYSQL_DB',".var_export($dbname,true).");\n\$g5=".var_export($mapping,true).';');
         $before=redtoy_completion_query("select count(*) as n,coalesce(sum(po_point),0) as total from points")->fetch_assoc();
         $run=completion_cli($fixture,array('--dry-run'),$socket);
         verify_completion($run[0]===0 && strpos($run[1],"from=ALL\n")!==false,'actual CLI previews all order dates');
@@ -171,7 +172,7 @@ try {
         verify_completion($run[0]===0 && strpos($run[1],"paid_points=0\n")!==false,'second legacy batch also excludes checkout credits');
         $run=completion_cli($fixture,array('--limit=100'),$socket);
         verify_completion($run[0]===0 && strpos($run[1],"paid_points=10000\n")!==false,'next batch pays only 50 eligible member orders');
-        foreach(array('config.php','version.php','lib/common.lib.php','lib/pbkdf2.compat.php','lib/hook.lib.php','lib/get_data.lib.php','lib/Hook/hook.class.php','lib/Hook/hook.extends.class.php','lib/redtoy_order_completion.lib.php','adm/shop_admin/order_auto_complete.php','data/dbconfig.php','data/order_auto_complete.lock','data/order_auto_complete.log') as $file)if(is_file($fixture.'/'.$file))unlink($fixture.'/'.$file);
+        foreach(array('config.php','version.php','lib/common.lib.php','lib/pbkdf2.compat.php','lib/hook.lib.php','lib/get_data.lib.php','lib/Hook/hook.class.php','lib/Hook/hook.extends.class.php','lib/redtoy_order_completion.lib.php','lib/redtoy_danal_cancel.lib.php','adm/shop_admin/order_auto_complete.php','data/dbconfig.php','data/order_auto_complete.lock','data/order_auto_complete.log') as $file)if(is_file($fixture.'/'.$file))unlink($fixture.'/'.$file);
         foreach(array('adm/shop_admin','adm','lib/Hook','lib','data','') as $path)rmdir($fixture.'/'.$path);$fixture=null;
         foreach(array('orders','cart','members','points','items','config') as $table)$redtoy_completion_db->query("drop table $table");
     }

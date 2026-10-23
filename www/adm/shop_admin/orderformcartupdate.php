@@ -9,6 +9,14 @@ auth_check_menu($auth, $sub_menu, "w");
 check_admin_token();
 
 $redtoy_statistics_before_order = sql_fetch(" select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ");
+if ($redtoy_statistics_before_order['od_pg'] === 'danal') {
+    require_once G5_LIB_PATH.'/redtoy_danal_cancel.lib.php';
+    if (in_array(isset($_POST['ct_status'])?$_POST['ct_status']:'',array('취소','반품','품절'),true))
+        alert('다날 취소·환불 화면에서 처리해 주세요.', './redtoy_cancel.php?od_id='.rawurlencode($od_id));
+    try { redtoy_cancel_guard_order($od_id); }
+    catch (Throwable $e) { alert('취소 처리 중이거나 확인 필요 기록이 있습니다. 다날 취소·환불 화면에서 확인해 주세요.'); }
+}
+
 
 $ct_chk_count = isset($_POST['ct_chk']) ? count($_POST['ct_chk']) : 0;
 if(!$ct_chk_count)

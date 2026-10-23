@@ -18,6 +18,8 @@ if(!trim($mod_memo))
 $sql = " select * from {$g5['g5_shop_order_table']} where od_id = '$od_id' ";
 $od = sql_fetch($sql);
 $redtoy_statistics_before_order = $od;
+if ($od['od_pg'] === 'danal') alert('다날 상품 취소·환불 화면에서 처리해 주세요.');
+
 
 if(! (isset($od['od_id']) && $od['od_id']))
     alert_close('주문정보가 존재하지 않습니다.');

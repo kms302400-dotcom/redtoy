@@ -19,6 +19,12 @@ if (! (isset($od['od_id']) && $od['od_id'])) {
     alert("존재하는 주문이 아닙니다.");
 }
 
+if ($od['od_pg'] === 'danal') {
+    require_once G5_LIB_PATH.'/redtoy_danal_cancel.lib.php';
+    try { redtoy_cancel_guard_order($od_id); }
+    catch (Throwable $e) { alert('주문 처리 중이거나 취소 결과 확인이 필요합니다. 고객센터에 문의해 주세요.'); }
+}
+
 // 주문상품의 상태가 주문인지 체크
 $sql = " select SUM(IF(ct_status = '주문', 1, 0)) as od_count2,
                 COUNT(*) as od_count1

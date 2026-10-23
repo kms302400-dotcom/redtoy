@@ -1163,6 +1163,7 @@ $(function() {
 
 function form_submit(f)
 {
+    f.action = './orderformcartupdate.php';
     var check = false;
     var status = document.pressed;
     document.getElementById("ct_status").value = status;
@@ -1176,6 +1177,13 @@ function form_submit(f)
         alert("처리할 자료를 하나 이상 선택해 주십시오.");
         return false;
     }
+
+    <?php if ($od['od_pg'] === 'danal') { ?>
+    if (status === '취소' || status === '반품' || status === '품절') {
+        f.action = './redtoy_cancel.php';
+        return true;
+    }
+    <?php } ?>
 
     var msg = "";
 
