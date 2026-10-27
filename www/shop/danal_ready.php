@@ -1,92 +1,15 @@
 <?php
 	header("Pragma: No-Cache");
 	include_once('./_common.php');
-	
-	/*
-	print_r($_REQUEST);
-	exit;
-	Array
-(
-    [it_id] => Array
-        (
-            [0] => 1739281634
-        )
+require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
+try {
+    $redtoy_checkout = redtoy_checkout_begin_payment($_POST, strtolower((string)($_POST['od_settle_case'] ?? '')));
+} catch (Throwable $e) {
+    redtoy_checkout_reject();
+}
 
-    [it_name] => Array
-        (
-            [0] => test
-        )
 
-    [it_price] => Array
-        (
-            [0] => 1000
-        )
 
-    [cp_id] => Array
-        (
-            [0] => 
-        )
-
-    [cp_price] => Array
-        (
-            [0] => 0
-        )
-
-    [od_price] => 1000
-    [org_od_price] => 1000
-    [od_send_cost] => 3500
-    [od_partner] => 
-    [od_send_cost2] => 0
-    [item_coupon] => 0
-    [good_mny] => 4500
-    [od_coupon] => 0
-    [od_send_coupon] => 0
-    [od_goods_name] => test
-    [version] => 4
-    [server] => 1
-    [od_name] => 관리자
-    [od_tel] => 0260099149
-    [od_hp] => 010-4818-9149
-    [od_zip] => 03992
-    [od_addr1] => 서울 마포구 월드컵북로6길 26
-    [od_addr2] => 4층
-    [od_addr3] =>  (동교동, 삼기빌딩)
-    [od_addr_jibeon] => R
-    [od_email] => red@redcomm.kr
-    [ad_sel_addr] => same
-    [ad_subject] => 
-    [od_b_name] => 관리자
-    [od_b_tel] => 0260099149
-    [od_b_hp] => 010-4818-9149
-    [od_b_zip] => 03992
-    [od_b_addr1] => 서울 마포구 월드컵북로6길 26
-    [od_b_addr2] => 4층
-    [od_b_addr3] =>  (동교동, 삼기빌딩)
-    [od_b_addr_jibeon] => R
-    [od_memo] => 
-    [od_settle_case] => CARD
-    [max_temp_point] => 1000
-    [od_temp_point] => 0
-    [od_bank_account] => 국민은행 032901-04-359256 (주)나인팩토리커뮤니케이션
-    [od_deposit_name] => 
-    [BILLTYPE] => 00
-    [mbrNo] => 114515
-    [mbrName] => 이노빅스
-    [buyerName] => 관리자
-    [buyerMobile] => 010-4818-9149
-    [buyerEmail] => red@redcomm.kr
-    [customerEmail] => red@redcomm.kr
-    [mb_id] => admin
-    [od_id] => 2025021601455444
-    [send_cost] => 3500
-    [send_cost2] => 0
-    [tmp_cart_id] => 2025021601350484
-    [goodsCode] => 1739281634
-    [salesPrice] => 4500
-    [productCount] => 1
-    [CPCODE] => 
-)
-	*/
 	
 	$mb = get_member($_SESSION["ss_mb_id"]);
 
@@ -107,7 +30,7 @@
 	$itemname_encoding = mb_detect_encoding($_POST["od_goods_name"], ["CP949", "UTF-8"]);
 	$REQ_DATA["ITEMNAME"] = mb_convert_encoding($_POST["od_goods_name"], "CP949", $itemname_encoding);
 	
-	$REQ_DATA["ORDERID"] = $_POST["od_id"];
+	$REQ_DATA["ORDERID"] = $redtoy_checkout['order_id'];
 	
 	/**************************************************
 	 * 고객 정보
@@ -127,8 +50,8 @@
 	/**************************************************
 	 * URL 정보
 	**************************************************/
-	$REQ_DATA["CANCELURL"] = "https://" . $_SERVER["SERVER_NAME"] . "/shop/danal_cancel.php";
-	$REQ_DATA["RETURNURL"] = "https://" . $_SERVER["SERVER_NAME"] . "/shop/orderformupdate.php";
+	$REQ_DATA["CANCELURL"] = redtoy_checkout_callback_url($redtoy_checkout['token'], true);
+	$REQ_DATA["RETURNURL"] = redtoy_checkout_callback_url($redtoy_checkout['token']);
 	$REQ_DATA["NOTIURL"] = "https://" . $_SERVER["SERVER_NAME"] . "/shop/danal_noti.php";
 	
 	/**************************************************
@@ -198,7 +121,7 @@
 	        break;
 	}
 	
-	$_SESSION["payinfo"] = array("paymethod" => $gopaymethod, "amount" => $REQ_DATA["AMOUNT"], "order_info" => $_REQUEST);
+	redtoy_checkout_payment_ready($redtoy_checkout['token'], $RES_DATA);
 	if ( $RES_DATA['RETURNCODE'] == "0000" ) { 
 ?>
 <form name="form" ACTION="<?= $RES_DATA["STARTURL"] ?>" METHOD="POST" >

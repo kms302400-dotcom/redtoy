@@ -1,22 +1,23 @@
-<?
-    session_start();
-    
-    $sw_direct = 0;
-    $pay_info = $_SESSION["payinfo"];
-    if ($pay_info) {
-        $sw_direct = $pay_info["order_info"]["sw_direct"];
-    }
-    $_SESSION["payinfo"] = "";
+<?php
+include_once('./_common.php');
+require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
+try {
+    $redtoy_checkout = redtoy_checkout_cancel(redtoy_checkout_request_token());
+    $sw_direct = $redtoy_checkout['direct'] ? 1 : 0;
+    if (function_exists('redtoy_order_log')) redtoy_order_log($redtoy_checkout['order_id'], 'cancelled');
+} catch (Throwable $e) {
+    redtoy_checkout_reject(true);
+}
 ?>
 <script>
-    if (opener) {
+    if (window.opener) {
         try {
-            opener.danal_cancel();
+            window.opener.danal_cancel();
             window.close();
-        } catch {
-            location.href = '/shop/orderform.php?sw_direct=<?=$sw_direct?>'
+        } catch (e) {
+            location.href = '/shop/orderform.php?sw_direct=<?php echo $sw_direct; ?>';
         }
     } else {
-        location.href = '/shop/orderform.php?sw_direct=<?=$sw_direct?>'
+        location.href = '/shop/orderform.php?sw_direct=<?php echo $sw_direct; ?>';
     }
 </script>

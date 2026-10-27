@@ -1,0 +1,9 @@
+-- Use the actual G5_TABLE_PREFIX. Apply separately BEFORE deploying PHP.
+-- Existing order/cart/member/payment data is not modified.
+CREATE TABLE `g5_redtoy_order_sequence` (
+  `reservation_date` DATE NOT NULL,
+  `last_serial` INT UNSIGNED NOT NULL DEFAULT 100000,
+  PRIMARY KEY (`reservation_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=ascii;
+SHOW CREATE TABLE `g5_redtoy_order_sequence`;
+-- Do not truncate, delete rows, or reset last_serial after allocations begin.

@@ -28,10 +28,13 @@ if ($is_kakaopay_use) {
     require_once(G5_SHOP_PATH . '/kakaopay/orderform.1.php');
 }
 
-$_SESSION["payinfo"] = null;
+// Each checkout owns its payment snapshot; opening another form must not clear it.
 ?>
 
 <form name="MAINPAY_FORM" id="MAINPAY_FORM" method="post" action="<?php echo $order_action_url; ?>" autocomplete="off">
+    <input type="hidden" name="checkout_token" value="<?php echo htmlspecialchars($redtoy_checkout['token'], ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="od_id" value="<?php echo $od_id; ?>">
+    <input type="hidden" name="sw_direct" value="<?php echo htmlspecialchars($sw_direct, ENT_QUOTES, 'UTF-8'); ?>">
     <input type="hidden" name="adult_check" value="<?php echo $_SESSION["ss_cert_adult"]; ?>" />
     
     <!-- 주문상품 확인 시작 { -->

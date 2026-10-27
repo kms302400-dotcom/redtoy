@@ -29,7 +29,14 @@ if (function_exists('before_check_cart_price')) {
 }
 
 // 새로운 주문번호 생성
-$od_id = get_uniqodid();
+require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
+try {
+    $redtoy_checkout = redtoy_checkout_create($tmp_cart_id, $sw_direct);
+    $od_id = $redtoy_checkout['order_id'];
+} catch (Throwable $e) {
+    alert('주문번호를 안전하게 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    exit;
+}
 set_session('ss_order_id', $od_id);
 if (function_exists('redtoy_order_log_entered')) redtoy_order_log_entered($od_id, $tmp_cart_id);
 $s_cart_id = $tmp_cart_id;

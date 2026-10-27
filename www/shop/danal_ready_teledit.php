@@ -1,6 +1,14 @@
 <?php
 	header( "Pragma: No-Cache" );
 	include_once('./_common.php');
+require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
+try {
+    $redtoy_phone_config = redtoy_checkout_phone_config();
+    $redtoy_checkout = redtoy_checkout_begin_payment($_POST, 'hpp');
+} catch (Throwable $e) {
+    redtoy_checkout_reject();
+}
+
 	include( "../lib/danal_function_teledit.php" );
 	
 	$mb = get_member($_SESSION["ss_mb_id"]);
@@ -30,8 +38,8 @@
 	 *  PWD         : 다날에서 제공해 드린 PWD( function 파일 참조 )
 	 *  CPNAME      : CP 명
 	 ******************************************************/
-	$TransR["ID"] = "A010078853";
-	$TransR["PWD"] = "q6Z8N7MEuz";
+	$TransR["ID"] = $redtoy_phone_config['id'];
+	$TransR["PWD"] = $redtoy_phone_config['password'];
 	$CPName = "주식회사 인센스글로벌";
 
 	/******************************************************
@@ -43,7 +51,7 @@
 	 ******************************************************/
 	$ItemAmt = $_POST["good_mny"];
 	$ItemName = $_POST["od_goods_name"];
-	$ItemCode = "22S2In0005";
+	$ItemCode = $redtoy_phone_config['item_code'];
 	$ItemInfo = MakeItemInfo( $ItemAmt,$ItemCode,$ItemName );
 
 	$TransR["ItemInfo"] = $ItemInfo;
@@ -58,7 +66,7 @@
 	 ******************************************************/
 	$TransR["SUBCP"] = "";
 	$TransR["USERID"] = $mb["mb_id"];
-	$TransR["ORDERID"] = $_POST["od_id"];
+	$TransR["ORDERID"] = $redtoy_checkout['order_id'];
 	$TransR["IsPreOtbill"] = "N";
 	$TransR["IsSubscript"] = "N";
 
@@ -79,8 +87,8 @@
 	 * CIURL        : CP의 CI FULL URL
 	 ******************************************************/
 	$ByPassValue["BgColor"] = "00";
-	$ByPassValue["TargetURL"] = "https://" . $_SERVER["SERVER_NAME"] . "/shop/orderformupdate.php";
-	$ByPassValue["BackURL"] = "https://" . $_SERVER["SERVER_NAME"] . "/shop/danal_cancel.php";
+	$ByPassValue["TargetURL"] = redtoy_checkout_callback_url($redtoy_checkout['token']);
+	$ByPassValue["BackURL"] = redtoy_checkout_callback_url($redtoy_checkout['token'], true);
 	$ByPassValue["IsUseCI"] = "N";
 	$ByPassValue["CIURL"] = "";
 	/***[ 선택 사항 ]**************************************/
@@ -100,9 +108,10 @@
 	//$ByPassValue["ByAnyName"] = "p_noti";
 
 	$Res = CallTeledit($TransR, false);
+    if (!isset($Res['Result']) || (string)$Res['Result'] !== '0') redtoy_checkout_payment_ready($redtoy_checkout['token'], $Res);
 	
 	if( $Res["Result"] == "0" ) {
-	    $_SESSION["payinfo"] = array("paymethod" => "hpp", "amount" => $ItemAmt, "order_info" => $_REQUEST);
+	    redtoy_checkout_payment_ready($redtoy_checkout['token'], $Res);
 	    $WebOrMobile = "Web";
 	    if (is_mobile()) $WebOrMobile = "Mobile";
 ?>

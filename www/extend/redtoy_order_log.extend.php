@@ -1,6 +1,7 @@
 <?php
 if (!defined('_GNUBOARD_')) exit;
 require_once G5_LIB_PATH.'/redtoy_order_log.lib.php';
+require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
 add_replace('admin_menu','redtoy_order_log_menu',10,1);
 function redtoy_order_log_menu($menus)
 {
@@ -17,8 +18,8 @@ $redtoy_log_script = isset($_SERVER['SCRIPT_FILENAME']) ? realpath($_SERVER['SCR
 $redtoy_log_paths = array('shop/danal_ready.php','shop/danal_ready_teledit.php','shop/orderformupdate.php','mobile/shop/orderformupdate.php');
 foreach ($redtoy_log_paths as $redtoy_log_path) {
     if ($redtoy_log_script && $redtoy_log_script === realpath(G5_PATH.'/'.$redtoy_log_path)) {
-        $GLOBALS['redtoy_order_log_context'] = array('id'=>get_session('ss_order_id'),'path'=>$redtoy_log_path);
-        redtoy_order_log(get_session('ss_order_id'), 'submitted');
+        $GLOBALS['redtoy_order_log_context'] = array('id'=>redtoy_checkout_log_id(),'path'=>$redtoy_log_path);
+        redtoy_order_log($GLOBALS['redtoy_order_log_context']['id'], 'submitted');
         add_event('alert','redtoy_order_log_alert',10,1);
         add_event('alert_close','redtoy_order_log_alert',10,1);
         register_shutdown_function('redtoy_order_log_shutdown');

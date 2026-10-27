@@ -1,6 +1,17 @@
 <?php
 include_once('./_common.php');
 include_once(G5_LIB_PATH.'/mailer.lib.php');
+require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
+try {
+    $redtoy_checkout = redtoy_checkout_activate($_POST, $_GET);
+    if (isset($redtoy_checkout['replay_url'])) {
+        goto_url($redtoy_checkout['replay_url']);
+        exit;
+    }
+} catch (Throwable $e) {
+    redtoy_checkout_reject(isset($_GET['checkout_token']));
+}
+
 
 $data = array();
 if (isset($_SESSION["payinfo"]) && count($_SESSION["payinfo"]) > 0) {
@@ -316,8 +327,12 @@ if ($od_temp_point)
     }
 }
 
+try {
+    redtoy_checkout_require_amount($redtoy_checkout['token'], $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point);
+} catch (Throwable $e) { redtoy_checkout_reject(isset($_GET['checkout_token'])); }
+
 // 주문번호를 얻는다.
-$od_id = get_session('ss_order_id');
+$od_id = $redtoy_checkout['order_id'];
 
 if ($default['de_pg_service'] == "danal") {
     /*[ 필수 데이터 ]***************************************/
@@ -337,7 +352,7 @@ if ($default['de_pg_service'] == "danal") {
         	$RES_DATA = array();
         	if( is_null($RET_RETURNCODE) || $RET_RETURNCODE != "0000" ){
         		// returnCode가 없거나 또는 그 결과가 성공이 아니라면 실패 처리
-        		
+
         		$RES_DATA["RETURNCODE"] = $RET_RETURNCODE;
         		$RES_DATA["RETURNMSG"] = $RET_RETURNMSG;
         	}
@@ -350,7 +365,10 @@ if ($default['de_pg_service'] == "danal") {
         		/**************************************************
         		 * 결제 정보
         		**************************************************/
-        		$REQ_DATA["TID"] = $RET_MAP["TID"];
+            try {
+                redtoy_checkout_authorized($redtoy_checkout['token'], 'card', $RET_MAP, $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point);
+            } catch (Throwable $e) { redtoy_checkout_reject(true); }
+            $REQ_DATA["TID"] = $RET_MAP["TID"];
         		$REQ_DATA["AMOUNT"] = $payAmount; // 최초 결제요청(AUTH)시에 보냈던 금액과 동일한 금액을 전송
         				
         		/**************************************************
@@ -360,6 +378,9 @@ if ($default['de_pg_service'] == "danal") {
         		$REQ_DATA["SERVICETYPE"] = "DANALCARD";
 
         		$RES_DATA = CallCredit($REQ_DATA, false);
+            try { redtoy_checkout_payment_outcome($redtoy_checkout['token'], 'card', $RES_DATA); }
+            catch (Throwable $e) { redtoy_checkout_reject(true); }
+
         	}
         	
         	if ( $RES_DATA['RETURNCODE'] == "0000" ) {
@@ -367,41 +388,7 @@ if ($default['de_pg_service'] == "danal") {
                 $data["P_AMT"] = $RES_DATA['AMOUNT'];
                 $data["P_AUTH_DT"] = $RES_DATA['TRANDATE'] . $RES_DATA['TRANTIME'];
                 $data["P_FN_NM"] = mb_convert_encoding($RES_DATA['CARDNAME'], "UTF-8", "UHC");
-        		/*
-    = RESULT =
-    [param:1]
-    Array
-    (
-        [RETURNPARAMS] => tm5yNjvXr/b/m13UKC3+GVbAUhhg912ggVwnT5UwE14xsrvlP42u9KsZfz064N/41luA4HqkOlcA+7/Ljglhbr5tZVz+mnRBgkKpia8b82ZlQOdAkpvyOJ1slyS6GwtI
-    )
 
-    = RESULT =
-    [param:1]
-    Array
-    (
-        [RETURNCODE] => 0000
-        [RETURNMSG] => ����
-        [CARDCODE] => 0931
-        [USERPHONE] => 
-        [BYPASSVALUE] => JTdCJTIyc3dfZGlyZWN0JTIyJTNBJTIyMSUyMiUyQyUyMml0X2lkJTIyJTNBJTVCJTIyMTczNzg2NjkyNiUyMiU1RCUyQyUyMml0X25hbWUlMjIlM0ElNUIlMjJ0ZXN0JTIyJTVEJTJDJTIyaXRfcHJpY2UlMjIlM0ElNUIlMjIxJTJDMDAwJTIyJTVEJTJDJTIyY3BfcHJpY2UlMjIlM0ElNUIlMjIwJTIyJTVEJTJDJTIyY3BfaWQlMjIlM0E
-        [QUOTA] => 00
-        [TRXAMOUNT] => 1000
-        [TRANTIME] => 022039
-        [TRANDATE] => 20250201
-        [AMOUNT] => 1000
-        [ITEMNAME] => test
-        [DEPOSIT_AMT] => 0
-        [DISCOUNTAMOUNT] => 0
-        [TID] => 202502010218441515374400
-        [ORDERID] => 2025020102183552
-        [CARDNO] => 532750******5440
-        [CARDAUTHNO] => 27219706
-        [CARDNAME] => �佺��ũ
-        [USERNAME] => ������
-        [USERID] => naver_a072095a1
-    )
-
-        		*/
         	} else {
         		$RETURNCODE = iconv("CP949", "UTF8", $RES_DATA['RETURNCODE']);
         		$RETURNMSG = iconv("CP949", "UTF8", $RES_DATA['RETURNMSG']);
@@ -436,7 +423,7 @@ if ($default['de_pg_service'] == "danal") {
         	 */
         	if( $nConfirmOption == 1 )
         	{
-        		$TransR["CPID"] = "A010078853";
+                $TransR["CPID"] = redtoy_checkout_phone_config()['id'];
         		$TransR["AMOUNT"] = $payAmount;
         	}
 
@@ -456,7 +443,13 @@ if ($default['de_pg_service'] == "danal") {
         		$TransR["ServerInfo"] = $ServerInfo;
         		$TransR["IFVERSION"] = "V1.1.2";
 
-        		$Res2 = CallTeledit( $TransR,false );
+            try {
+                redtoy_checkout_authorized($redtoy_checkout['token'], 'hpp', $RES_DATA, $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point);
+            } catch (Throwable $e) { redtoy_checkout_reject(true); }
+            $Res2 = CallTeledit( $TransR,false );
+            try { redtoy_checkout_payment_outcome($redtoy_checkout['token'], 'hpp', $Res2, $RES_DATA); }
+            catch (Throwable $e) { redtoy_checkout_reject(true); }
+
 
         		if( $Res2["Result"] != "0" )
         		{
@@ -473,38 +466,7 @@ if ($default['de_pg_service'] == "danal") {
         		 * - CAP, RemainAmt: 개인정보 정책에 의해 잔여 한도 금액은 미전달 됩니다. (“000000”)
         		 *
         		 **************************************************************************/
-        		 /*
-        		 p($RES_DATA, $Res2);
-        		 exit;
-        		 = RESULT =
-    [param:1]
-    Array
-    (
-        [Result] => 0
-        [ErrMsg] => No Information
-        [TID] => 020105544352064422
-        [CPID] => 9010050028
-        [SUBCP] => none
-        [AMOUNT] => 1000
-        [ORDERID] => 2025020105350135
-        [] => 
-    )
 
-    [param:2]
-    Array
-    (
-        [Result] => 0
-        [ErrMsg] => No Information
-        [TID] => 020105544352064422
-        [RemainAmt] => 000000
-        [ORDERID] => 2025020105350135
-        [DNTID] => 2025020105544352064422
-        [DATE] => 20250201055650
-        [Authkey] => NA
-        [Iden] => NA
-        [] => 
-    )
-        		*/
         		 
         		$data["P_TID"] = $RES_DATA["TID"];
                 $data["P_AUTH_DT"] = $Res2["DATE"];
@@ -937,6 +899,9 @@ if ($default['de_pg_service'] == "danal") {
 }
 
 // 주문서에 입력
+try {
+    redtoy_checkout_assert_persist($redtoy_checkout['token'], $od_id, $od_tno, $od_receipt_price);
+} catch (Throwable $e) { redtoy_checkout_reject(isset($_GET['checkout_token'])); }
 if (function_exists('redtoy_order_log') && !empty($od_tno) && (int)$od_receipt_price > 0) redtoy_order_log($od_id, 'payment_confirmed');
 $sql = " insert {$g5['g5_shop_order_table']}
             set od_id             = '$od_id',
@@ -1109,6 +1074,7 @@ if(!$result) {
     die('<p>고객님의 주문 정보를 처리하는 중 오류가 발생해서 주문이 완료되지 않았습니다.</p><p>'.strtoupper($od_pg).'를 이용한 전자결제(신용카드, 계좌이체, 가상계좌 등)은 자동 취소되었습니다.');
 }
 
+redtoy_checkout_saved($redtoy_checkout['token']);
 if (function_exists('redtoy_order_log')) redtoy_order_log($od_id, 'order_saved');
 
 // 회원이면서 포인트를 사용했다면 테이블에 사용을 추가
@@ -1337,6 +1303,7 @@ if($is_member) {
 }
 
 include_once(G5_SHOP_PATH.'/orderalimtalk.inc.php'); // wetoz : 알림톡연동
+redtoy_checkout_complete($redtoy_checkout['token'], $uid, $od_tno, $od_receipt_price);
 if (function_exists('redtoy_order_log')) redtoy_order_log($od_id, 'completed');
 
 if ($default['de_pg_service'] == "danal") {

@@ -86,7 +86,7 @@ try {
     ol_reject(function(){ol_page(array(),array('action'=>'delete','token'=>'synthetic-token','order_ids'=>array('100')));},'redirect');
     ol_check((int)$db->query("SELECT COUNT(*) n FROM g5_redtoy_order_log WHERE order_id='100'")->fetch_assoc()['n']===0,'all selected stages deleted');
     ol_check((int)$db->query('SELECT COUNT(*) n FROM orders')->fetch_assoc()['n']===1,'actual order preserved');
-    $_SESSION['ss_order_id']='900';$_POST['od_id']='999';$_SERVER['SCRIPT_FILENAME']=G5_PATH.'/shop/danal_ready.php';
+    $member=array('mb_id'=>'synthetic-owner');$_SESSION['redtoy_checkout_attempts'][str_repeat('a',64)]=array('order_id'=>'900','owner'=>'synthetic-owner','created_at'=>time());$_POST['checkout_token']=str_repeat('a',64);$_SESSION['ss_order_id']='900';$_POST['od_id']='999';$_SERVER['SCRIPT_FILENAME']=G5_PATH.'/shop/danal_ready.php';
     require G5_PATH.'/extend/redtoy_order_log.extend.php';
     $GLOBALS['RES_DATA']=array('RETURNCODE'=>'0000');redtoy_order_log_shutdown();
     ol_check((int)$db->query("SELECT COUNT(*) n FROM g5_redtoy_order_log WHERE order_id='900'")->fetch_assoc()['n']===2,'ready hook uses server ID');

@@ -78,7 +78,7 @@ foreach(array('shop/danal/orderform.1.php','mobile/shop/danal/orderform.1.php') 
     checkout_verify(strpos($source,'/shop/danal_ready.php')!==false && strpos($source,'/shop/danal_ready_teledit.php')!==false, "$file shares Danal ready routes");
 }
 foreach(array('shop/danal_ready.php','shop/danal_ready_teledit.php') as $file) {
-    checkout_verify(strpos(file_get_contents($root.'/'.$file),'/shop/orderformupdate.php')!==false, "$file returns to corrected handler");
+    checkout_verify(strpos(file_get_contents($root.'/'.$file),'redtoy_checkout_callback_url(')!==false, "$file returns to corrected handler");
 }
 // Danal callbacks restore session POST after common.php request extraction.
 // Execute the real persistence assignments with stale globals and untrusted form values.
