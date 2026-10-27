@@ -77,13 +77,13 @@
 
 ## 운영자 실행 도우미
 
-아래 코드는 운영자가 SSH에서 명시적으로 실행하는 배포 도우미다. 애플리케이션 런타임에서는 실행하지 않는다. 별도 실행 파일을 저장소에 추가하지 않고, 검토한 이 문서의 지정 블록을 준비 폴더로 추출한다. source는 이 변경 커밋의 체크아웃이어야 하며 parent는 위 기준 커밋이어야 한다. prepare → pause → check → 기존 결제 종료 확인 → apply 순서다.
+아래 코드는 운영자가 SSH에서 명시적으로 실행하는 배포 도우미다. 애플리케이션 런타임에서는 실행하지 않는다. 별도 실행 파일을 저장소에 추가하지 않고, 검토한 이 문서의 지정 블록을 준비 폴더로 추출한다. source는 이 변경 커밋의 체크아웃이어야 하며 위 기준 커밋을 조상으로 포함해야 한다. prepare → pause → check → 기존 결제 종료 확인 → apply 순서다.
 
 - prepare: 기존 웹 파일 9개와 패치·해시·운영 Git 상태를 0700 준비 폴더에 보존한다. 휴대폰 설정을 기존 서버 파일에서 비공개 파일로 추출하고 신규 예약 테이블을 만든다. 이미 예약 테이블이 있으면 초기화하지 않고 중단한다. 새 테이블이 없었던 상태를 전제로 하므로 기존 DB 덤프를 복원할 변경은 없으며, 기존 주문·장바구니·회원 테이블에는 쓰지 않는다. 준비 도중 실패하면 폴더와 출력으로 마지막 단계를 확인하며 DDL을 무작정 반복하지 않는다.
 - pause: 레드토이 shop 디렉터리의 orderform.php, danal_ready.php, danal_ready_teledit.php만 HTTP 403으로 임시 차단한다. 상품 조회·장바구니·관리자·기존 결제 콜백은 유지한다. 서버의 다른 쇼핑몰 디렉터리에는 적용하지 않는다.
 - check: 세션 파일을 공유 잠금으로 읽어 기존 결제 후보·요청 중 잠금·읽기 실패 개수만 표시한다. 개인 데이터/세션 토큰을 출력하거나 세션을 삭제하지 않는다. 후보가 남아 원인을 확인하지 못했거나 PG 결제가 진행 중이면 적용하지 말고 확인한다. 세션 경로가 다르거나 읽기 권한이 없으면 확인을 완료하기 전 진행하지 않는다.
-- apply: 차단 HTTP 403·원본 해시·패치·PHP 문법을 확인한다. OLD-PAYMENTS-FINISHED를 운영자가 입력해야 적용된다. 코드 반영 후 문법·역패치·쇼핑몰 HTTP 200·Apache 검사/재로드를 통과한 뒤 차단을 해제한다. 검사 실패 시 자동으로 결제를 재개하지 않는다. DB 기존 데이터나 Git 브랜치를 변경하지 않는다. 이전에 열어 둔 주문서는 새로 열어야 한다.
-- rollback: 먼저 새 진입을 차단하고 신규 결제 종료/PG 대조 후 NEW-PAYMENTS-FINISHED를 입력해야 이번 패치만 역적용한다. 원본 해시를 확인한다. 예약 테이블·순번·비공개 설정·모든 주문은 남긴다. 구 코드의 중복번호 위험이 돌아오기 때문에 새 주문서 진입은 차단한 채로 둔다. 기존 주문 조회/관리와 콜백은 열려 있다. 복구 후 원인 검토 없이 차단을 해제하지 않는다.
+- apply: 차단 HTTP 403·원본 해시·패치·PHP 문법을 확인한다. OLD-PAYMENTS-FINISHED를 운영자가 입력해야 적용된다. 공용 라이브러리를 먼저 생성·권한 확인한 뒤 나머지 패치를 적용한다. 코드 반영 후 문법·역패치·쇼핑몰 HTTP 200·Apache 검사/재로드를 통과한 뒤 차단을 해제한다. 검사 실패 시 자동으로 결제를 재개하지 않는다. DB 기존 데이터나 Git 브랜치를 변경하지 않는다. 이전에 열어 둔 주문서는 새로 열어야 한다.
+- rollback: 먼저 새 진입을 차단하고 신규 결제 종료/PG 대조 후 NEW-PAYMENTS-FINISHED를 입력해야 참조 코드를 먼저 역적용하고 마지막에 신규 라이브러리를 제거한다. 원본 해시를 확인한다. 예약 테이블·순번·비공개 설정·모든 주문은 남긴다. 구 코드의 중복번호 위험이 돌아오기 때문에 새 주문서 진입은 차단한 채로 둔다. 기존 주문 조회/관리와 콜백은 열려 있다. 복구 후 원인 검토 없이 차단을 해제하지 않는다.
 
 결제 중 무중단 호환을 보장하는 배포가 아니다. 새 결제 진입의 짧은 중단을 사용해 진행 중 결제를 먼저 마친 뒤 전환한다. 강제 시간 제한으로 기존 결제창을 버리지 않는다. 전환 후 승인된 PC·모바일 무통장/카드/휴대폰 테스트에서 주문번호·금액·저장 주문·PG를 대조한다.
 
@@ -204,7 +204,7 @@ def private_phone():
 
 def prepare():
     require(not META.exists(), 'Already prepared; use check, not prepare again')
-    require(output(['git','-C',str(SOURCE),'rev-parse','HEAD^'])==BASE, 'Unexpected parent revision')
+    run(['git','-C',str(SOURCE),'merge-base','--is-ancestor',BASE,'HEAD'])
     commit=output(['git','-C',str(SOURCE),'rev-parse','HEAD'])
     files=output(['git','-C',str(SOURCE),'diff','--name-only',BASE,'HEAD','--','www']).splitlines()
     require(set(files)==set(WEB), 'Unexpected web patch scope')
@@ -311,9 +311,14 @@ def apply(meta):
     for name,digest in meta['before'].items():
         require(hashlib.sha256((PROD/name).read_bytes()).hexdigest()==digest,'Production file changed since backup')
     run(['git','-C',str(PROD),'apply','--check',str(STAGE/'deploy.patch')])
+    # Common extend can be loaded by every page: its dependency must exist first.
+    library=PROD/WEB[0]
+    with library.open('xb') as stream:
+        stream.write((SOURCE/WEB[0]).read_bytes())
+    library.chmod(0o644)
     previous=os.umask(0o022)
     try:
-        run(['git','-C',str(PROD),'apply','--whitespace=nowarn',str(STAGE/'deploy.patch')])
+        run(['git','-C',str(PROD),'apply','--exclude='+WEB[0],'--whitespace=nowarn',str(STAGE/'deploy.patch')])
     finally:
         os.umask(previous)
     meta['applied']=True
@@ -338,7 +343,9 @@ def rollback(meta):
     require(input('Type NEW-PAYMENTS-FINISHED: ').strip()=='NEW-PAYMENTS-FINISHED','Rollback cancelled')
     require(hashlib.sha256((STAGE/'code-before.tar.gz').read_bytes()).hexdigest()==meta['backup_sha256'],'Backup checksum mismatch')
     run(['git','-C',str(PROD),'apply','--reverse','--check',str(STAGE/'deploy.patch')])
-    run(['git','-C',str(PROD),'apply','--reverse',str(STAGE/'deploy.patch')])
+    # Remove the shared dependency only AFTER all references are reverted.
+    run(['git','-C',str(PROD),'apply','--reverse','--exclude='+WEB[0],str(STAGE/'deploy.patch')])
+    (PROD/WEB[0]).unlink()
     for name,digest in meta['before'].items():
         require(hashlib.sha256((PROD/name).read_bytes()).hexdigest()==digest,'Restored file mismatch')
         run([PHP,'-d','short_open_tag=1','-l',str(PROD/name)], stdout=subprocess.DEVNULL)
