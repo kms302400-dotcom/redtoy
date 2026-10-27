@@ -1,4 +1,38 @@
 <?php
+// Restore a first-party POST before bootstrap can replace a missing session cookie.
+// Only PG transport fields are forwarded; all payment/session checks still run below.
+$redtoy_return_cookie = defined('G5_SESSION_NAME') ? G5_SESSION_NAME : session_name();
+$redtoy_return_token = $_GET['checkout_token'] ?? null;
+$redtoy_return_post_token = $_POST['checkout_token'] ?? null;
+$redtoy_return_payload = array();
+foreach (array('RETURNPARAMS','ServerInfo') as $redtoy_return_field) {
+    if (isset($_POST[$redtoy_return_field]) && is_string($_POST[$redtoy_return_field]) &&
+        $_POST[$redtoy_return_field] !== '' && strlen($_POST[$redtoy_return_field]) <= 131072) {
+        $redtoy_return_payload[$redtoy_return_field] = $_POST[$redtoy_return_field];
+    }
+}
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $redtoy_return_payload &&
+    is_string($redtoy_return_token) && preg_match('/^[a-f0-9]{64}$/D',$redtoy_return_token) &&
+    ($redtoy_return_post_token === null || (is_string($redtoy_return_post_token) && hash_equals($redtoy_return_token,$redtoy_return_post_token))) &&
+    (!isset($_COOKIE[$redtoy_return_cookie]) || !is_string($_COOKIE[$redtoy_return_cookie]) || $_COOKIE[$redtoy_return_cookie] === '') &&
+    !isset($_POST['_redtoy_cookie_return'])) {
+    $redtoy_return_nonce = bin2hex(random_bytes(16));
+    header('Content-Type: text/html; charset=UTF-8');
+    header('Cache-Control: no-store, private');
+    header('Referrer-Policy: no-referrer');
+    header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$redtoy_return_nonce'; form-action 'self'; base-uri 'none'");
+    echo '<!doctype html><html lang="ko"><head><meta charset="UTF-8"><title>결제 결과 확인</title></head><body>';
+    echo '<form id="redtoy-cookie-return" method="post">';
+    foreach ($redtoy_return_payload as $redtoy_return_field => $redtoy_return_value) {
+        echo '<input type="hidden" name="'.$redtoy_return_field.'" value="'.htmlspecialchars($redtoy_return_value,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'">';
+    }
+    echo '<input type="hidden" name="_redtoy_cookie_return" value="1">';
+    echo '<noscript><button type="submit">결제 결과 확인</button></noscript></form>';
+    echo '<script nonce="'.$redtoy_return_nonce.'">document.getElementById("redtoy-cookie-return").submit();</script></body></html>';
+    exit;
+}
+unset($redtoy_return_cookie,$redtoy_return_token,$redtoy_return_post_token,$redtoy_return_payload,$redtoy_return_field);
+
 include_once('./_common.php');
 include_once(G5_LIB_PATH.'/mailer.lib.php');
 require_once G5_LIB_PATH.'/redtoy_checkout.lib.php';
@@ -9,6 +43,7 @@ try {
         exit;
     }
 } catch (Throwable $e) {
+    redtoy_checkout_report_rejection('activate',$e);
     redtoy_checkout_reject(isset($_GET['checkout_token']));
 }
 
@@ -329,7 +364,7 @@ if ($od_temp_point)
 
 try {
     redtoy_checkout_require_amount($redtoy_checkout['token'], $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point);
-} catch (Throwable $e) { redtoy_checkout_reject(isset($_GET['checkout_token'])); }
+} catch (Throwable $e) { redtoy_checkout_report_rejection('amount',$e); redtoy_checkout_reject(isset($_GET['checkout_token'])); }
 
 // 주문번호를 얻는다.
 $od_id = $redtoy_checkout['order_id'];
@@ -367,7 +402,7 @@ if ($default['de_pg_service'] == "danal") {
         		**************************************************/
             try {
                 redtoy_checkout_authorized($redtoy_checkout['token'], 'card', $RET_MAP, $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point);
-            } catch (Throwable $e) { redtoy_checkout_reject(true); }
+            } catch (Throwable $e) { redtoy_checkout_report_rejection('authorize_card',$e); redtoy_checkout_reject(true); }
             $REQ_DATA["TID"] = $RET_MAP["TID"];
         		$REQ_DATA["AMOUNT"] = $payAmount; // 최초 결제요청(AUTH)시에 보냈던 금액과 동일한 금액을 전송
         				
@@ -379,7 +414,7 @@ if ($default['de_pg_service'] == "danal") {
 
         		$RES_DATA = CallCredit($REQ_DATA, false);
             try { redtoy_checkout_payment_outcome($redtoy_checkout['token'], 'card', $RES_DATA); }
-            catch (Throwable $e) { redtoy_checkout_reject(true); }
+            catch (Throwable $e) { redtoy_checkout_report_rejection('result_card',$e); redtoy_checkout_reject(true); }
 
         	}
         	
@@ -445,10 +480,10 @@ if ($default['de_pg_service'] == "danal") {
 
             try {
                 redtoy_checkout_authorized($redtoy_checkout['token'], 'hpp', $RES_DATA, $tot_od_price + $send_cost + $send_cost2 - $tot_sc_cp_price - $od_temp_point);
-            } catch (Throwable $e) { redtoy_checkout_reject(true); }
+            } catch (Throwable $e) { redtoy_checkout_report_rejection('authorize_phone',$e); redtoy_checkout_reject(true); }
             $Res2 = CallTeledit( $TransR,false );
             try { redtoy_checkout_payment_outcome($redtoy_checkout['token'], 'hpp', $Res2, $RES_DATA); }
-            catch (Throwable $e) { redtoy_checkout_reject(true); }
+            catch (Throwable $e) { redtoy_checkout_report_rejection('result_phone',$e); redtoy_checkout_reject(true); }
 
 
         		if( $Res2["Result"] != "0" )
@@ -901,7 +936,7 @@ if ($default['de_pg_service'] == "danal") {
 // 주문서에 입력
 try {
     redtoy_checkout_assert_persist($redtoy_checkout['token'], $od_id, $od_tno, $od_receipt_price);
-} catch (Throwable $e) { redtoy_checkout_reject(isset($_GET['checkout_token'])); }
+} catch (Throwable $e) { redtoy_checkout_report_rejection('persist',$e); redtoy_checkout_reject(isset($_GET['checkout_token'])); }
 if (function_exists('redtoy_order_log') && !empty($od_tno) && (int)$od_receipt_price > 0) redtoy_order_log($od_id, 'payment_confirmed');
 $sql = " insert {$g5['g5_shop_order_table']}
             set od_id             = '$od_id',

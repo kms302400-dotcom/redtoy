@@ -290,6 +290,27 @@ function redtoy_checkout_log_id()
     try { $a=redtoy_checkout_attempt(redtoy_checkout_request_token()); return $a['order_id']; }
     catch (Throwable $e) { return ''; }
 }
+// Log fixed diagnostic codes/flags only, never PG payloads, keys, TIDs or cookies.
+function redtoy_checkout_report_rejection($stage,$error)
+{
+    try {
+        $allowed=array('invalid_checkout','expired_checkout','checkout_busy','invalid_cart','cart_unavailable',
+            'empty_cart','cart_changed','cart_payment_busy','order_already_exists','order_unavailable',
+            'missing_return_token','completed_order_changed','payment_amount_mismatch','invalid_payment_state',
+            'payment_order_mismatch','payment_transaction_mismatch','checkout_session_unavailable','payment_uncertain','payment_result_mismatch');
+        $code=$error instanceof RuntimeException && in_array($error->getMessage(),$allowed,true) ? $error->getMessage() : 'unexpected_error';
+        $token=null;
+        try { $token=redtoy_checkout_request_token(); } catch (Throwable $ignored) {}
+        $attempt=is_string($token) ? ($_SESSION['redtoy_checkout_attempts'][$token] ?? null) : null;
+        $cookie=defined('G5_SESSION_NAME') ? G5_SESSION_NAME : session_name();
+        $stages=array('activate','amount','authorize_card','result_card','authorize_phone','result_phone','persist');
+        $flags=array('stage'=>in_array($stage,$stages,true)?$stage:'unknown','code'=>$code,
+            'cookie'=>isset($_COOKIE[$cookie]) && is_string($_COOKIE[$cookie]) && $_COOKIE[$cookie]!=='',
+            'attempt'=>is_array($attempt),'owner_match'=>is_array($attempt) && ($attempt['owner'] ?? null)===redtoy_checkout_owner(),
+            'cookie_return'=>isset($_POST['_redtoy_cookie_return']));
+        error_log('[redtoy-checkout] '.json_encode($flags,JSON_UNESCAPED_SLASHES));
+    } catch (Throwable $ignored) {}
+}
 function redtoy_checkout_reject($callback=false)
 {
     $message=$callback ? '결제 결과를 안전하게 처리할 수 없습니다. 이미 결제됐을 수 있으므로 재결제하지 말고 고객센터에 문의해 주세요.' : '주문서가 만료되었거나 결제가 진행 중입니다. 열린 결제창을 확인하거나 주문서를 다시 열어 주세요.';

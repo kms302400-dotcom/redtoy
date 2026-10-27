@@ -300,6 +300,106 @@ JS;
         $out=stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);
         rc_check(proc_close($p)===0 && $out==='ok','invalid amount never submits to PG');
     }
+    // Exercise the actual entry prefix over HTTP with native PHP session files.
+    $db->query("INSERT INTO cart VALUES (30,30,'http-card',1,30000,'',0,0,'',0,1,'쇼핑'),(31,31,'http-bank',1,30000,'',0,0,'',0,1,'쇼핑'),(32,32,'http-phone',1,30000,'',0,0,'',0,1,'쇼핑')");
+    $is_member=true;$member=array('mb_id'=>'member-a');$_SESSION['ss_mb_id']='member-a';
+    $httpCard=redtoy_checkout_create('30','');$httpCard=redtoy_checkout_begin_payment(rc_post($httpCard,30000),'card');
+    redtoy_checkout_payment_ready($httpCard['token'],array('RETURNCODE'=>'0000','TID'=>'http-card'));rc_end_request();
+    $httpBank=redtoy_checkout_create('31','');
+    $httpPhone=redtoy_checkout_create('32','');$httpPhone=redtoy_checkout_begin_payment(rc_post($httpPhone,30000,'HPP'),'hpp');
+    redtoy_checkout_payment_ready($httpPhone['token'],array('Result'=>'0'));rc_end_request();
+    $httpDir='/private/tmp/redtoy-cookie-http.'.bin2hex(random_bytes(6));mkdir($httpDir,0700);
+    $entry=file_get_contents(dirname(__DIR__).'/www/shop/orderformupdate.php');
+    $prefix=substr($entry,0,strpos($entry,'$data = array();'));
+    symlink(G5_LIB_PATH.'/redtoy_checkout.lib.php',$httpDir.'/redtoy_checkout.lib.php');
+    file_put_contents($httpDir.'/mailer.lib.php','<?php');
+    $bootstrap='<?php define("_GNUBOARD_",true);define("G5_TABLE_PREFIX","g5_");define("G5_LIB_PATH",__DIR__);define("G5_SHOP_URL","/shop");define("G5_HTTPS_SHOP_URL","https://synthetic.invalid/shop");';
+    $bootstrap.='mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);$db=new mysqli("localhost","root","",'.var_export($name,true).',0,'.var_export($socket,true).');$db->set_charset("utf8mb4");';
+    $bootstrap.='$g5=array("connect_db"=>$db,"g5_shop_order_table"=>"orders","g5_shop_cart_table"=>"cart");session_save_path('.var_export($parentSessionDir,true).');session_start();$is_member=!empty($_SESSION["ss_mb_id"]);$member=array("mb_id"=>$_SESSION["ss_mb_id"]??"");';
+    $bootstrap.='function get_session($k){return $_SESSION[$k]??"";}function set_session($k,$v){$_SESSION[$k]=$v;}function alert($m){http_response_code(409);echo "rejected";exit;}function goto_url($u){echo "replayed";exit;}';
+    file_put_contents($httpDir.'/_common.php',$bootstrap);
+    $finish= <<<'FIXTURE'
+$a=$redtoy_checkout;$provider=$a['provider'];$tid='http-'.$provider;
+redtoy_checkout_authorized($a['token'],$provider,array('TID'=>$tid,'ORDERID'=>$a['order_id'],'AMOUNT'=>30000),30000);
+$db->query("INSERT INTO charge_spy(order_id) VALUES ('{$a['order_id']}')");
+redtoy_checkout_payment_outcome($a['token'],$provider,$provider==='card'?array('RETURNCODE'=>'0000','TID'=>$tid,'ORDERID'=>$a['order_id'],'AMOUNT'=>30000):array('Result'=>'0','TID'=>$tid,'ORDERID'=>$a['order_id'],'AMOUNT'=>30000));
+redtoy_checkout_assert_persist($a['token'],$a['order_id'],$tid,30000);
+$owner=redtoy_checkout_owner();$db->query("INSERT INTO orders VALUES ('{$a['order_id']}','$tid',30000,'$owner')");
+redtoy_checkout_saved($a['token']);redtoy_checkout_complete($a['token'],'http-uid',$tid,30000);echo 'billed';
+FIXTURE;
+    $router="<?php if(isset(\$_GET['custom'])){define('G5_SESSION_NAME','SYNTHSID');session_name('SYNTHSID');} ?>".$prefix.$finish;
+    file_put_contents($httpDir.'/router.php',$router);
+    $listener=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);if(!$listener)throw new RuntimeException('HTTP listener');
+    $address=stream_socket_get_name($listener,false);fclose($listener);
+    $server=null;session_write_close();
+    try {
+        $server=proc_open(array(PHP_BINARY,'-d','short_open_tag=1','-d','display_errors=0','-d','opcache.enable_cli=0','-S',$address,'router.php'),array(0=>array('file','/dev/null','r'),1=>array('file',$httpDir.'/server.out','a'),2=>array('file',$httpDir.'/server.err','a')),$unused,$httpDir);
+        if(!is_resource($server))throw new RuntimeException('HTTP server');
+        $ready=false;for($i=0;$i<40;$i++){ $c=@stream_socket_client('tcp://'.$address,$errno,$errstr,.1);if($c){fclose($c);$ready=true;break;}usleep(50000); }
+        rc_check($ready,'HTTP fixture ready');
+        $send=function($a,$post,$cookie='',$extra='')use($address){
+            $headers="Content-Type: application/x-www-form-urlencoded\r\n";if($cookie!=='')$headers.='Cookie: '.$cookie."\r\n";
+            $ctx=stream_context_create(array('http'=>array('method'=>'POST','header'=>$headers,'content'=>http_build_query($post),'ignore_errors'=>true,'timeout'=>5)));
+            $body=file_get_contents('http://'.$address.'/shop/orderformupdate.php?checkout_token='.$a['token'].$extra,false,$ctx);
+            return array($body,$http_response_header);
+        };
+        $beforeCharges=(int)$db->query('SELECT COUNT(*) n FROM charge_spy')->fetch_assoc()['n'];
+        // Control: the same callback without the bridge loses the session before activation.
+        $oldEntry="<?php\n".substr($prefix,strpos($prefix,"include_once('./_common.php');"));
+        file_put_contents($httpDir.'/router.php',$oldEntry.$finish);
+        list($oldFailure,$oldHeaders)=$send($httpCard,array('RETURNPARAMS'=>'synthetic'));
+        rc_check($oldFailure==='rejected' && strpos($oldHeaders[0],'409')!==false,'pre-fix callback without cookie reproduces rejection before mock billing');
+        rc_check((int)$db->query('SELECT COUNT(*) n FROM charge_spy')->fetch_assoc()['n']===$beforeCharges,'pre-fix rejected callback did not charge');
+        file_put_contents($httpDir.'/router.php',$router);
+        foreach(array($httpCard,$httpPhone) as $attempt){
+            $field=$attempt['provider']==='card'?'RETURNPARAMS':'ServerInfo';
+            $payload='synthetic"</script>&+';$post=array($field=>$payload,'od_id'=>'999999','untrusted'=>'not-forwarded');
+            list($body,$headers)=$send($attempt,$post);
+            rc_check(strpos($body,'id="redtoy-cookie-return"')!==false,'missing '.$attempt['provider'].' cookie yields same-origin bridge');
+            rc_check(!preg_match('/^Set-Cookie:/mi',implode("\n",$headers)),'bridge never replaces original cookie');
+            rc_check(stripos(implode("\n",$headers),'Cache-Control: no-store')!==false && stripos(implode("\n",$headers),"form-action 'self'")!==false,'bridge is uncached and posts only to its origin');
+            rc_check(strpos($body,'synthetic"</script>')===false && strpos($body,'name="untrusted"')===false && strpos($body,'name="od_id"')===false,'opaque payload escaped and arbitrary fields discarded');
+            preg_match_all('/<input type="hidden" name="([^"]+)" value="([^"]*)">/',$body,$inputs,PREG_SET_ORDER);$retry=array();
+            foreach($inputs as $input)$retry[$input[1]]=html_entity_decode($input[2],ENT_QUOTES|ENT_HTML5,'UTF-8');
+            rc_check(($retry[$field]??null)===$payload && ($retry['_redtoy_cookie_return']??null)==='1','transport payload preserved with one-shot marker');
+            rc_check(!redtoy_checkout_existing($attempt['order_id']),'bridge does not create an order or charge');
+            list($paid,$headers)=$send($attempt,$retry,'PHPSESSID='.$parentSid);
+            rc_check($paid==='billed' && strpos($headers[0],'200')!==false,'same-origin '.$attempt['provider'].' POST recovers original session and verifies before mock billing');
+            list($again,$headers)=$send($attempt,$retry,'PHPSESSID='.$parentSid);
+            rc_check($again==='replayed','completed '.$attempt['provider'].' callback replay never bills again');
+        }
+        rc_check((int)$db->query('SELECT COUNT(*) n FROM charge_spy')->fetch_assoc()['n']===$beforeCharges+2,'one synthetic charge per recovered card/phone attempt');
+        list($rejected,$headers)=$send($httpCard,array('RETURNPARAMS'=>'synthetic','_redtoy_cookie_return'=>'1'));
+        rc_check($rejected==='rejected' && strpos($headers[0],'409')!==false,'disabled cookies stop after one retry');
+        list($rejected,$headers)=$send($httpCard,array('RETURNPARAMS'=>'synthetic'),'PHPSESSID='.str_repeat('f',32));
+        rc_check($rejected==='rejected' && strpos($headers[0],'409')!==false,'unrelated session cannot consume another checkout');
+        list($rejected,$headers)=$send($httpCard,array('RETURNPARAMS'=>'synthetic','checkout_token'=>str_repeat('0',64)));
+        rc_check($rejected==='rejected','conflicting GET/POST token is not bridged');
+        list($rejected,$headers)=$send($httpBank,array('od_settle_case'=>'무통장','od_id'=>$httpBank['order_id']));
+        rc_check($rejected==='rejected' && strpos($rejected,'redtoy-cookie-return')===false,'ordinary bank POST is not intercepted');
+        list($again,$headers)=$send($httpCard,array('RETURNPARAMS'=>'synthetic'),'SYNTHSID='.$parentSid,'&custom=1');
+        rc_check($again==='replayed','configured session cookie name is respected');
+        rc_check((int)$db->query('SELECT COUNT(*) n FROM charge_spy')->fetch_assoc()['n']===$beforeCharges+2,'all invalid and replayed HTTP requests cause zero extra charges');
+        $log=file_get_contents($httpDir.'/server.err');
+        rc_check(strpos($log,'[redtoy-checkout]')!==false && strpos($log,'"code":"expired_checkout"')!==false,'activation rejection records a safe diagnostic code');
+        rc_check(strpos($log,$httpCard['token'])===false && strpos($log,'synthetic"</script>')===false,'failure log excludes token and PG payload');
+    } finally {
+        if(is_resource($server)){proc_terminate($server);proc_close($server);}
+        foreach(glob($httpDir.'/*') as $file)unlink($file);rmdir($httpDir);session_start();
+    }
+    $safeLog=$parentSessionDir.'/safe-errors';$oldErrorLog=ini_get('error_log');ini_set('error_log',$safeLog);
+    $oldPost=$_POST;$oldGet=$_GET;$oldCookies=$_COOKIE;
+    $_GET=array('checkout_token'=>$httpCard['token']);$_POST=array('RETURNPARAMS'=>'never-log-this-payload');$_COOKIE=array(session_name()=>'never-log-this-cookie');
+    redtoy_checkout_report_rejection('activate',new RuntimeException('never-log-this-sql-or-key'));
+    ini_set('error_log',$oldErrorLog);$safeText=file_get_contents($safeLog);
+    rc_check(strpos($safeText,'"code":"unexpected_error"')!==false && strpos($safeText,'never-log-this')===false && strpos($safeText,$httpCard['token'])===false,'unknown exception messages, cookies and payloads are redacted');
+    ini_set('error_log',$safeLog);
+    redtoy_checkout_report_rejection('authorize_card',new RuntimeException('payment_transaction_mismatch'));
+    redtoy_checkout_report_rejection('never-log-this-stage',new RuntimeException('payment_amount_mismatch'));
+    ini_set('error_log',$oldErrorLog);$safeText=file_get_contents($safeLog);
+    rc_check(strpos($safeText,'"stage":"authorize_card","code":"payment_transaction_mismatch"')!==false,'authorization failure stage and fixed reason are retained');
+    rc_check(strpos($safeText,'"stage":"unknown","code":"payment_amount_mismatch"')!==false && strpos($safeText,'never-log-this-stage')===false,'unrecognized diagnostic stages are redacted');
+    $_POST=$oldPost;$_GET=$oldGet;$_COOKIE=$oldCookies;
     $originalAttempts=$_SESSION['redtoy_checkout_attempts'];$_SESSION['redtoy_checkout_attempts']=array();
     for($i=0;$i<40;$i++) $_SESSION['redtoy_checkout_attempts'][hash('sha256',(string)$i)]=array('created_at'=>time(),'state'=>'pending');
     rc_reject(function(){redtoy_checkout_create('1','');},'too_many_checkouts');
